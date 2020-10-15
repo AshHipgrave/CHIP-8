@@ -52,11 +52,11 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="test_rom.ch8" />
-  </ItemGroup>
-  <ItemGroup>
     <ResourceCompile Include="Chip8 Emulator.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\ROMs\test_rom.ch8" />
   </ItemGroup>
 </Project>
