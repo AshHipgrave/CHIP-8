@@ -76,11 +76,14 @@ void Emulator::Update(float DeltaTime)
 {
 	UpdateTimers();
 
-	//m_Cpu->RunCycle();
+	m_Cpu->RunCycle();
+
+	m_EmulatorGraphics->Update();
 }
 
 void Emulator::Draw()
 {
+	m_EmulatorGraphics->Draw();
 }
 
 void Emulator::UpdateTimers()
@@ -113,39 +116,40 @@ void Emulator::LoadROM()
 {
 	IFileOpenDialog* fileOpenDialog;
 
-	::ThrowIfFailed(
-		CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&fileOpenDialog)));
-
-	fileOpenDialog->SetFileTypes(3, FileFilterSpec);
-
-	if (SUCCEEDED(fileOpenDialog->Show(m_MainWindowHandle)))
+	if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&fileOpenDialog))))
 	{
-		IShellItem* item;
 
-		if (SUCCEEDED(fileOpenDialog->GetResult(&item)))
+		fileOpenDialog->SetFileTypes(3, FileFilterSpec);
+
+		if (SUCCEEDED(fileOpenDialog->Show(m_MainWindowHandle)))
 		{
-			PWSTR filePath;
+			IShellItem* item;
 
-			if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &filePath)))
+			if (SUCCEEDED(fileOpenDialog->GetResult(&item)))
 			{
-				if (m_Cpu->LoadProgram(filePath))
+				PWSTR filePath;
+
+				if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &filePath)))
 				{
-					m_bIsProgramLoaded = true;
+					if (m_Cpu->LoadProgram(filePath))
+					{
+						m_bIsProgramLoaded = true;
 
-					UpdateStatusBarText();
+						UpdateStatusBarText();
+					}
 				}
+
+				item->Release();
 			}
-
-			item->Release();
 		}
-	}
 
-	fileOpenDialog->Release();
+		fileOpenDialog->Release();
+	}
 }
 
 void Emulator::OnResize()
 {
-
+	m_EmulatorGraphics->OnResize();
 }
 
 void Emulator::OnStatusbarSize()
@@ -448,7 +452,9 @@ bool Emulator::InitWindowStatusBar()
 
 void Emulator::InitGraphics()
 {
-
+	m_EmulatorGraphics = new Graphics();
+	
+	m_EmulatorGraphics->Initialise();
 }
 
 void Emulator::InitCpu()

@@ -145,6 +145,9 @@ private:
 	// Pointer to the CPU instance that will be used for emulation
 	CPU* m_Cpu = nullptr;
 
+	// Pointer to the current DX12 renderer that will render the emulated VRAM to the screen
+	Graphics* m_EmulatorGraphics = nullptr;
+
 	// Game timer class used for handling timer-related emulation tasks
 	GameTimer* m_GameTimer = nullptr;
 
