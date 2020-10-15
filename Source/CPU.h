@@ -70,11 +70,16 @@ public:
 	void RunCycle();
 
 	/// <summary>
-	/// Sets the state of a keyboard key to denote if it is currently being pressed or not.
+	/// Sets the state of the specified key as Pressed
 	/// </summary>
-	/// <param name="keycode">Keycode of the key being set</param>
-	/// <param name="state">The state of the key (0 = UP | 1 = DOWN)</param>
-	void SetKeyState(uint8_t keycode, uint8_t state);
+	/// <param name="keycode">Key being pressed</param>
+	void SetKeyState(uint8_t keycode);
+
+	/// <summary>
+	/// Clears the state of the specified key so that it's not being pressed.
+	/// </summary>
+	/// <param name="keycode">Key being released</param>
+	void ClearKeyState(uint8_t keycode);
 
 	/// <summary>
 	/// Sets the Delay register to the specified value.

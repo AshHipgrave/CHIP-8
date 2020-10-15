@@ -86,9 +86,14 @@ void CPU::RunCycle()
 	}
 }
 
-void CPU::SetKeyState(uint8_t keycode, uint8_t state)
+void CPU::SetKeyState(uint8_t keycode)
 {
-	m_CpuState->KeyState[keycode] = state;
+	m_CpuState->KeyState[keycode] = 0x1;
+}
+
+void CPU::ClearKeyState(uint8_t keycode)
+{
+	m_CpuState->KeyState[keycode] = 0x0;
 }
 
 void CPU::SetDelayRegister(uint8_t value)

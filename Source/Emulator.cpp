@@ -319,14 +319,50 @@ LRESULT Emulator::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 			return 0;
 		}
+		case WM_KEYDOWN:
+		{
+			switch (wParam)
+			{
+				case VK_0: m_Cpu->SetKeyState(0x0); return 0;
+				case VK_1: m_Cpu->SetKeyState(0x1); return 0;
+				case VK_2: m_Cpu->SetKeyState(0x2); return 0;
+				case VK_3: m_Cpu->SetKeyState(0x3); return 0;
+				case VK_4: m_Cpu->SetKeyState(0x4); return 0;
+				case VK_5: m_Cpu->SetKeyState(0x5); return 0;
+				case VK_6: m_Cpu->SetKeyState(0x6); return 0;
+				case VK_7: m_Cpu->SetKeyState(0x7); return 0;
+				case VK_8: m_Cpu->SetKeyState(0x8); return 0;
+				case VK_9: m_Cpu->SetKeyState(0x9); return 0;
+				case VK_A: m_Cpu->SetKeyState(0xA); return 0;
+				case VK_B: m_Cpu->SetKeyState(0xB); return 0;
+				case VK_C: m_Cpu->SetKeyState(0xC); return 0;
+				case VK_D: m_Cpu->SetKeyState(0xD); return 0;
+				case VK_E: m_Cpu->SetKeyState(0xE); return 0;
+				case VK_F: m_Cpu->SetKeyState(0xF); return 0;
+			}
+		}
 		case WM_KEYUP:
 		{
-			if (wParam == VK_ESCAPE)
+			switch (wParam)
 			{
-				::PostQuitMessage(0);
+				case VK_0: m_Cpu->ClearKeyState(0x0); return 0;
+				case VK_1: m_Cpu->ClearKeyState(0x1); return 0;
+				case VK_2: m_Cpu->ClearKeyState(0x2); return 0;
+				case VK_3: m_Cpu->ClearKeyState(0x3); return 0;
+				case VK_4: m_Cpu->ClearKeyState(0x4); return 0;
+				case VK_5: m_Cpu->ClearKeyState(0x5); return 0;
+				case VK_6: m_Cpu->ClearKeyState(0x6); return 0;
+				case VK_7: m_Cpu->ClearKeyState(0x7); return 0;
+				case VK_8: m_Cpu->ClearKeyState(0x8); return 0;
+				case VK_9: m_Cpu->ClearKeyState(0x9); return 0;
+				case VK_A: m_Cpu->ClearKeyState(0xA); return 0;
+				case VK_B: m_Cpu->ClearKeyState(0xB); return 0;
+				case VK_C: m_Cpu->ClearKeyState(0xC); return 0;
+				case VK_D: m_Cpu->ClearKeyState(0xD); return 0;
+				case VK_E: m_Cpu->ClearKeyState(0xE); return 0;
+				case VK_F: m_Cpu->ClearKeyState(0xF); return 0;
 			}
-
-			return 0;
+			break;
 		}
 	}
 
