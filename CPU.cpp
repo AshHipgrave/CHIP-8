@@ -22,10 +22,10 @@ void CPU::Init()
 	}
 }
 
-bool CPU::LoadProgram(std::string FilePath)
+bool CPU::LoadProgram(const wchar_t* FilePath)
 {
 	std::ifstream inputFile;
-	inputFile.open(FilePath.c_str(), std::ios::binary);
+	inputFile.open(FilePath, std::ios::binary);
 
 	if (inputFile.is_open())
 	{

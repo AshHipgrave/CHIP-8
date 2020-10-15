@@ -2,6 +2,8 @@
 
 #include "EmulatorCommon.h"
 
+#include <shobjidl.h>
+
 #include "CPU.h"
 #include "GameTimer.h"
 #include "resource.h"
@@ -39,6 +41,8 @@ private:
 	void Update();
 	void Draw();
 
+	void LoadROM();
+
 protected:
 	static Emulator* m_Emulator;
 
@@ -61,6 +65,13 @@ private:
 
 	GameTimer m_GameTimer;
 
-	std::wstring m_MainWindowCaption = L"CHIP-8 Emulator";
+	const std::wstring m_MainWindowCaption = L"CHIP-8 Emulator";
+
+	const COMDLG_FILTERSPEC FileFilterSpec[3] =
+	{
+		{ L"CHIP-8 Program", L"*.ch8" },
+		{ L"Binary Files",   L"*.bin" },
+		{ L"All Files",      L"*.*" }
+	};
 };
 

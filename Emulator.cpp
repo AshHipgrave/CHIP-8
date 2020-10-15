@@ -73,7 +73,35 @@ void Emulator::Update()
 
 void Emulator::Draw()
 {
+}
 
+void Emulator::LoadROM()
+{
+	IFileOpenDialog* fileOpenDialog;
+
+	::ThrowIfFailed(
+		CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&fileOpenDialog)));
+
+	fileOpenDialog->SetFileTypes(3, FileFilterSpec);
+
+	if (SUCCEEDED(fileOpenDialog->Show(m_MainWindowHandle)))
+	{
+		IShellItem* item;
+
+		if (SUCCEEDED(fileOpenDialog->GetResult(&item)))
+		{
+			PWSTR filePath;
+
+			if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &filePath)))
+			{
+				m_Cpu->LoadProgram(filePath);
+			}
+
+			item->Release();
+		}
+	}
+
+	fileOpenDialog->Release();
 }
 
 void Emulator::OnResize()
@@ -95,8 +123,8 @@ LRESULT Emulator::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			switch (LOWORD(wParam))
 			{
 				case ID_FILE_LOADROM:
-					// Open ROM file dialog.
-					break;
+					LoadROM();
+					return 0;
 				case ID_DEBUG_SHOWDEBUGVIEW:
 					// Show ImGui w/ register states etc.
 					break;
@@ -237,7 +265,7 @@ LRESULT Emulator::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 bool Emulator::InitMainWindow()
 {
-	WNDCLASS windowClass;
+	WNDCLASS windowClass = { 0 };
 	windowClass.style = CS_HREDRAW | CS_VREDRAW;
 	windowClass.lpfnWndProc = MainWndProc;
 	windowClass.cbClsExtra = 0;
@@ -251,7 +279,7 @@ bool Emulator::InitMainWindow()
 
 	if (!::RegisterClass(&windowClass))
 	{
-		::MessageBox(0, L"Failed to register WindowClass", 0, MB_ICONERROR);
+		::MessageBox(0, L"Failed to register WindowClass", L"Error creating MainWindow", MB_ICONERROR);
 		return false;
 	}
 
@@ -266,7 +294,7 @@ bool Emulator::InitMainWindow()
 
 	if (!m_MainWindowHandle)
 	{
-		::MessageBox(0, L"Failed to create main window", 0, MB_ICONERROR);
+		::MessageBox(0, L"Failed to create main window", L"Error creating MainWindow", MB_ICONERROR);
 		return false;
 	}
 

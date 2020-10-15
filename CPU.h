@@ -62,7 +62,7 @@ public:
 	/// </summary>
 	/// <param name="FilePath">Path to the ROM file on disk that will be loaded into CPU memory</param>
 	/// <returns>True if the program was loaded successfully. Otherwise false</returns>
-	bool LoadProgram(std::string FilePath);
+	bool LoadProgram(const wchar_t* FilePath);
 
 	/// <summary>
 	/// Runs a single CPU cycle, emulating the current instruction being pointed to by the program counter
