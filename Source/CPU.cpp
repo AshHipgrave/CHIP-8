@@ -91,9 +91,19 @@ void CPU::SetKeyState(uint8_t keycode, uint8_t state)
 	m_CpuState->KeyState[keycode] = state;
 }
 
-const uint8_t* CPU::GetVRAM() const
+void CPU::SetDelayRegister(uint8_t value)
 {
-	return m_CpuState->VideoMemory;
+	m_CpuState->Delay = value;
+}
+
+void CPU::SetSoundRegister(uint8_t value)
+{
+	m_CpuState->Sound = value;
+}
+
+const ChipState* CPU::GetState() const
+{
+	return m_CpuState;
 }
 
 void CPU::Op0(uint8_t* opcode)

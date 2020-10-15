@@ -6,6 +6,7 @@
 
 #include "CPU.h"
 #include "GameTimer.h"
+#include "Graphics.h"
 #include "resource.h"
 
 /*
@@ -101,12 +102,18 @@ private:
 	/// <summary>
 	/// Updates the internal state of the emulator
 	/// </summary>
-	void Update();
+	/// <param name="DeltaTime">Time elapsed (in seconds) since the last call to Update</param>
+	void Update(float DeltaTime);
 
 	/// <summary>
 	/// Draws the emulator VRAM to screen
 	/// </summary>
 	void Draw();
+
+	/// <summary>
+	/// Decrements the CPU's 'Sound' and/or 'Delay' timers by 60 each second if they're currently greater than 0
+	/// </summary>
+	void UpdateTimers();
 
 	/// <summary>
 	/// Called when an end-user clicks on the 'File' > 'Load ROM' menu. Displays a 'File Browse Dialog' and attempts to load the user-selected file into the CPU's memory.

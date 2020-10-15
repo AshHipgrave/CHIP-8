@@ -77,10 +77,22 @@ public:
 	void SetKeyState(uint8_t keycode, uint8_t state);
 
 	/// <summary>
-	/// Gets the current data stored in Video Memory so it can be drawn to the screen by an external renderer
+	/// Sets the Delay register to the specified value.
 	/// </summary>
-	/// <returns>Data currently residing in VRAM</returns>
-	const uint8_t* GetVRAM() const;
+	/// <param name="value">The new value to set the Delay register to</param>
+	void SetDelayRegister(uint8_t value);
+
+	/// <summary>
+	/// Sets the Sound register to the specified value.
+	/// </summary>
+	/// <param name="value">The new value to set the Sound register to</param>
+	void SetSoundRegister(uint8_t value);
+
+	/// <summary>
+	/// Gets the current state of the CPU
+	/// </summary>
+	/// <returns>Current state of the CPU</returns>
+	const ChipState* GetState() const;
 
 private:
 	/// <summary>

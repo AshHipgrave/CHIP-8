@@ -59,7 +59,7 @@ int Emulator::Run()
 
 			if (!m_bIsAppPaused && m_bIsProgramLoaded)
 			{
-				Update();
+				Update(m_GameTimer->DeltaTime());
 				Draw();
 			}
 			else
@@ -72,13 +72,41 @@ int Emulator::Run()
 	return (int)msg.wParam;
 }
 
-void Emulator::Update()
+void Emulator::Update(float DeltaTime)
 {
-	m_Cpu->RunCycle();
+	UpdateTimers();
+
+	//m_Cpu->RunCycle();
 }
 
 void Emulator::Draw()
 {
+}
+
+void Emulator::UpdateTimers()
+{
+	static float timeElapsed = 0.0f;
+
+	if (m_GameTimer->TotalTime() - timeElapsed >= 1.0f)
+	{
+		const ChipState* cpuState = m_Cpu->GetState();
+
+		if (cpuState->Delay > 0)
+		{
+			uint8_t newValue = cpuState->Delay - ((cpuState->Delay < 60 ) ? cpuState->Delay : 60);
+
+			m_Cpu->SetDelayRegister(newValue);
+		}
+
+		if (cpuState->Sound > 0)
+		{
+			uint8_t newValue = cpuState->Sound - ((cpuState->Sound < 60) ? cpuState->Sound : 60);
+
+			m_Cpu->SetSoundRegister(newValue);
+		}
+
+		timeElapsed += 1.0f;
+	}
 }
 
 void Emulator::LoadROM()
@@ -378,6 +406,8 @@ bool Emulator::InitWindowStatusBar()
 
 	SendMessage(statusBar, SB_SETTEXT, 0, (LPARAM)L"Status: Paused");
 	SendMessage(statusBar, SB_SETTEXT, 1, (LPARAM)L"No Program Loaded");
+
+	return true;
 }
 
 void Emulator::InitGraphics()
