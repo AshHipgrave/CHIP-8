@@ -149,7 +149,10 @@ void Emulator::LoadROM()
 
 void Emulator::OnResize()
 {
-	m_EmulatorGraphics->OnResize();
+	if (m_EmulatorGraphics != nullptr)
+	{
+		m_EmulatorGraphics->OnResize(m_ClientWindowWidth, m_ClientWindowHeight); //TODO: Render window overlaps StatusBar.
+	}
 }
 
 void Emulator::OnStatusbarSize()
@@ -314,7 +317,7 @@ LRESULT Emulator::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 			return 0;
 		}
-		case WM_PAINT: /* Need to handle WM_PAINT to ensure both the menu and status bars resize properly */
+		/*case WM_PAINT:
 		{
 			PAINTSTRUCT ps;
 			HDC hdc = BeginPaint(m_MainWindowHandle, &ps);
@@ -322,7 +325,7 @@ LRESULT Emulator::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			EndPaint(m_MainWindowHandle, &ps);
 
 			return 0;
-		}
+		}*/
 		case WM_KEYDOWN:
 		{
 			switch (wParam)
@@ -454,7 +457,9 @@ void Emulator::InitGraphics()
 {
 	m_EmulatorGraphics = new Graphics();
 	
-	m_EmulatorGraphics->Initialise();
+	m_EmulatorGraphics->Initialise(m_MainWindowHandle, m_ClientWindowWidth, m_ClientWindowHeight);
+
+	OnResize();
 }
 
 void Emulator::InitCpu()

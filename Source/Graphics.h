@@ -1,8 +1,11 @@
 #pragma once
 
 #include "d3dUtils.h"
+#include <DirectXColors.h>
 
 using namespace std;
+
+using namespace DirectX;
 using namespace Microsoft::WRL;
 
 class Graphics
@@ -15,34 +18,39 @@ public:
 	Graphics& operator=(const Graphics& rhs) = delete;
 
 public:
-	bool Initialise();
+	bool Initialise(HWND windowHandle, int windowWidth, int windowHeight);
 
 	void Update();
 	void Draw();
 
-	void OnResize();
+	void OnResize(int windowWidth, int windowHeight);
 
 private:
-	bool InitDirect3D();
+	bool InitDirect3D(HWND windowHandle, int windowWidth, int windowHeight);
 
 	void CreateRtvAndDescriptorHeaps();
 
 	void CreateCommandObjects();
-	void CreateSwapChain();
+	void CreateSwapChain(HWND windowHandle, int windowWidth, int windowHeight);
 	void FlushCommandQueue();
 
 private:
-	inline ID3D12Resource* GetCurrentBackBuffer() const
+	ID3D12Resource* GetCurrentBackBuffer() const
 	{
 		return m_SwapChainBuffer[m_CurrentBackBufferIdx].Get();
 	}
 
-	inline D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() const
+	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() const
 	{
 		return CD3DX12_CPU_DESCRIPTOR_HANDLE(
 			m_RtvHeap->GetCPUDescriptorHandleForHeapStart(),
 			m_CurrentBackBufferIdx,
 			m_RtvDescriptorSize);
+	}
+
+	D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const
+	{
+		return m_DsvHeap->GetCPUDescriptorHandleForHeapStart();
 	}
 
 private:
