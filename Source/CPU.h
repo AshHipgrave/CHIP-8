@@ -69,6 +69,19 @@ public:
 	/// </summary>
 	void RunCycle();
 
+	/// <summary>
+	/// Sets the state of a keyboard key to denote if it is currently being pressed or not.
+	/// </summary>
+	/// <param name="keycode">Keycode of the key being set</param>
+	/// <param name="state">The state of the key (0 = UP | 1 = DOWN)</param>
+	void SetKeyState(uint8_t keycode, uint8_t state);
+
+	/// <summary>
+	/// Gets the current data stored in Video Memory so it can be drawn to the screen by an external renderer
+	/// </summary>
+	/// <returns>Data currently residing in VRAM</returns>
+	const uint8_t* GetVRAM() const;
+
 private:
 	/// <summary>
 	/// 0x0nnn instructions:

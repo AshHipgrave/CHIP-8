@@ -86,6 +86,16 @@ void CPU::RunCycle()
 	}
 }
 
+void CPU::SetKeyState(uint8_t keycode, uint8_t state)
+{
+	m_CpuState->KeyState[keycode] = state;
+}
+
+const uint8_t* CPU::GetVRAM() const
+{
+	return m_CpuState->VideoMemory;
+}
+
 void CPU::Op0(uint8_t* opcode)
 {
 	if (opcode[1] == 0xE0)
