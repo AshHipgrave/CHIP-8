@@ -32,11 +32,16 @@ public:
 
 private:
 	bool InitMainWindow();
+	bool InitWindowStatusBar();
+
 	void InitGraphics();
 
 	void InitCpu();
 
 	void OnResize();
+
+	void OnStatusbarSize();
+	void UpdateStatusBarText();
 
 	void Update();
 	void Draw();
@@ -49,11 +54,14 @@ protected:
 private:
 	CPU* m_Cpu = nullptr;
 
+	GameTimer* m_GameTimer = nullptr;
+
 	HINSTANCE m_AppInstance = nullptr;
 
 	HWND m_MainWindowHandle = nullptr;
 
-	bool m_bIsAppPaused = false;
+	bool m_bIsAppPaused = true;
+	bool m_bIsProgramLoaded = false;
 
 	bool m_bIsResizing = false;
 
@@ -62,8 +70,6 @@ private:
 
 	int m_ClientWindowWidth = 800;
 	int m_ClientWindowHeight = 600;
-
-	GameTimer m_GameTimer;
 
 	const std::wstring m_MainWindowCaption = L"CHIP-8 Emulator";
 

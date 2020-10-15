@@ -30,6 +30,10 @@ HWND Emulator::GetMainWindowHandle() const
 
 void Emulator::Initialise()
 {
+	m_bIsAppPaused = true;
+
+	m_GameTimer = new GameTimer();
+
 	InitMainWindow();
 	InitGraphics();
 	InitCpu();
@@ -39,7 +43,7 @@ int Emulator::Run()
 {
 	MSG msg = { 0 };
 
-	m_GameTimer.Reset();
+	m_GameTimer->Reset();
 
 	while (msg.message != WM_QUIT)
 	{
@@ -50,9 +54,10 @@ int Emulator::Run()
 		}
 		else
 		{
-			m_GameTimer.Tick();
+			m_GameTimer->Tick();
+			UpdateStatusBarText();
 
-			if (!m_bIsAppPaused)
+			if (!m_bIsAppPaused && m_bIsProgramLoaded)
 			{
 				Update();
 				Draw();
@@ -69,6 +74,7 @@ int Emulator::Run()
 
 void Emulator::Update()
 {
+	m_Cpu->RunCycle();
 }
 
 void Emulator::Draw()
@@ -94,7 +100,12 @@ void Emulator::LoadROM()
 
 			if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &filePath)))
 			{
-				m_Cpu->LoadProgram(filePath);
+				if (m_Cpu->LoadProgram(filePath))
+				{
+					m_bIsProgramLoaded = true;
+
+					UpdateStatusBarText();
+				}
 			}
 
 			item->Release();
@@ -107,6 +118,47 @@ void Emulator::LoadROM()
 void Emulator::OnResize()
 {
 
+}
+
+void Emulator::OnStatusbarSize()
+{
+	RECT controlRect = { 0, 0, 0, 0 };
+	GetClientRect(m_MainWindowHandle, &controlRect);
+
+	HWND statusBar = (HWND)GetWindowLongPtr(m_MainWindowHandle, GWLP_USERDATA);
+
+	int newHalf = controlRect.right / 2;
+
+	int statusBarPartsSize[2] = { newHalf + newHalf / 3, newHalf * 3 };
+
+	SendMessage(statusBar, SB_SETPARTS, 2, (LPARAM)&statusBarPartsSize);
+
+	UpdateStatusBarText();
+
+	SendMessage(statusBar, WM_SIZE, 0, 0);
+}
+
+void Emulator::UpdateStatusBarText()
+{
+	HWND statusBar = (HWND)GetWindowLongPtr(m_MainWindowHandle, GWLP_USERDATA);
+
+	if (m_bIsAppPaused || !m_bIsProgramLoaded)
+	{
+		SendMessage(statusBar, SB_SETTEXT, 0, (LPARAM)L"Status: Paused");
+	}
+	else
+	{
+		SendMessage(statusBar, SB_SETTEXT, 0, (LPARAM)L"Status: Running");
+	}
+
+	if (m_bIsProgramLoaded)
+	{
+		SendMessage(statusBar, SB_SETTEXT, 1, (LPARAM)L"ROM Loaded!");
+	}
+	else
+	{
+		SendMessage(statusBar, SB_SETTEXT, 1, (LPARAM)L"No Program Loaded");
+	}
 }
 
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -136,12 +188,12 @@ LRESULT Emulator::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if (LOWORD(wParam) == WA_INACTIVE)
 			{
 				m_bIsAppPaused = true;
-				m_GameTimer.Stop();
+				m_GameTimer->Stop();
 			}
 			else
 			{
 				m_bIsAppPaused = false;
-				m_GameTimer.Start();
+				m_GameTimer->Start();
 			}
 			return 0;
 		}
@@ -149,6 +201,8 @@ LRESULT Emulator::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 			m_ClientWindowWidth = LOWORD(lParam);
 			m_ClientWindowHeight = HIWORD(lParam);
+
+			OnStatusbarSize();
 
 			if (wParam == SIZE_MINIMIZED)
 			{
@@ -197,7 +251,7 @@ LRESULT Emulator::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			m_bIsAppPaused = true;
 			m_bIsResizing = true;
 
-			m_GameTimer.Stop();
+			m_GameTimer->Stop();
 
 			return 0;
 		}
@@ -206,7 +260,7 @@ LRESULT Emulator::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			m_bIsAppPaused = false;
 			m_bIsResizing = false;
 
-			//m_GameTimer.Start();
+			m_GameTimer->Start();
 
 			OnResize();
 
@@ -228,27 +282,15 @@ LRESULT Emulator::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 			return 0;
 		}
-		/*
-		case WM_LBUTTONDOWN:
-		case WM_MBUTTONDOWN:
-		case WM_RBUTTONDOWN:
+		case WM_PAINT: /* Need to handle WM_PAINT to ensure both the menu and status bars resize properly */
 		{
-			OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+			PAINTSTRUCT ps;
+			HDC hdc = BeginPaint(m_MainWindowHandle, &ps);
+			FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
+			EndPaint(m_MainWindowHandle, &ps);
+
 			return 0;
 		}
-		case WM_LBUTTONUP:
-		case WM_MBUTTONUP:
-		case WM_RBUTTONUP:
-		{
-			OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
-			return 0;
-		}
-		case WM_MOUSEMOVE:
-		{
-			OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
-			return 0;
-		}
-		*/
 		case WM_KEYUP:
 		{
 			if (wParam == VK_ESCAPE)
@@ -274,7 +316,7 @@ bool Emulator::InitMainWindow()
 	windowClass.hIcon = ::LoadIcon(0, IDI_APPLICATION);
 	windowClass.hCursor = ::LoadCursor(0, IDC_ARROW);
 	windowClass.hbrBackground = (HBRUSH)::GetStockObject(NULL_BRUSH);
-	windowClass.lpszMenuName = TEXT("IDR_MENU_MAIN"); //0;
+	windowClass.lpszMenuName = TEXT("IDR_MENU_MAIN");
 	windowClass.lpszClassName = L"CHIP8Window";
 
 	if (!::RegisterClass(&windowClass))
@@ -300,6 +342,42 @@ bool Emulator::InitMainWindow()
 
 	::ShowWindow(m_MainWindowHandle, SW_SHOW);
 	::UpdateWindow(m_MainWindowHandle);
+
+	if (!InitWindowStatusBar())
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool Emulator::InitWindowStatusBar()
+{
+	INITCOMMONCONTROLSEX iccx;
+	iccx.dwSize = sizeof(INITCOMMONCONTROLSEX);
+	iccx.dwICC = ICC_BAR_CLASSES;
+
+	if (!::InitCommonControlsEx(&iccx))
+	{
+		::MessageBox(0, L"Failed to initialise CommonControlsEx", L"Error creating MainWindow", MB_ICONERROR);
+		return false;
+	}
+
+	RECT controlRect = { 0, 0, 0, 0 };
+
+	HWND statusBar = CreateWindowEx(0, STATUSCLASSNAME, 0, WS_CHILD | WS_VISIBLE, controlRect.left, controlRect.top, controlRect.right, controlRect.bottom, m_MainWindowHandle, 0, m_AppInstance, 0);
+
+	SetWindowLongPtr(m_MainWindowHandle, GWLP_USERDATA, (LONG_PTR)statusBar);
+
+	GetClientRect(m_MainWindowHandle, &controlRect);
+
+	int half = controlRect.right / 2;
+	int controlParts[2] = { half + half / 3, half * 3 };
+
+	SendMessage(statusBar, SB_SETPARTS, 2, (LPARAM)&controlParts);
+
+	SendMessage(statusBar, SB_SETTEXT, 0, (LPARAM)L"Status: Paused");
+	SendMessage(statusBar, SB_SETTEXT, 1, (LPARAM)L"No Program Loaded");
 }
 
 void Emulator::InitGraphics()
