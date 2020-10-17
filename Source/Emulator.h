@@ -8,6 +8,7 @@
 
 #include "CPU.h"
 #include "GameTimer.h"
+#include "ImGuiImpl.h"
 
 /*
 * Main application class for running the emulator and managing the overall program state
@@ -67,26 +68,8 @@ private:
 	// Set to true if the CPU is currently running a program or false if no program is currently executing
 	bool m_bIsRunning = false;
 
-	// Map of SDL2 keycodes for the various keyboard keys the CHIP-8 can handle/react to
-	const Uint8 k_KeyCodes[16] = 
-	{
-		SDL_SCANCODE_0,
-		SDL_SCANCODE_1,
-		SDL_SCANCODE_2,
-		SDL_SCANCODE_3,
-		SDL_SCANCODE_4,
-		SDL_SCANCODE_5,
-		SDL_SCANCODE_6,
-		SDL_SCANCODE_7,
-		SDL_SCANCODE_8,
-		SDL_SCANCODE_9,
-		SDL_SCANCODE_A,
-		SDL_SCANCODE_B,
-		SDL_SCANCODE_C,
-		SDL_SCANCODE_D,
-		SDL_SCANCODE_E,
-		SDL_SCANCODE_F
-	};
+	// Buffer for uploading VRAM to the GPU for rendering
+	uint32_t m_PixelBuffer[2048];
 
 	// State of each keyboard key (i.e. Is it pressed or not)
 	Uint8* m_KeyStates = nullptr;
@@ -106,10 +89,12 @@ private:
 	// Game timer class used for handling timer-related emulation tasks
 	GameTimer* m_GameTimer = nullptr;
 
+	ImGuiImpl* m_ImGuiContext = nullptr;
+
 private:
 	// Dimensions the main application window will be created at
-	int k_WindowWidth = 800;
-	int k_WindowHeight = 600;
+	int k_WindowWidth = 1440;
+	int k_WindowHeight = 900;
 
 	// Title displayed for the main appliaction window
 	const char* k_WindowTitle = "CHIP-8 Emulator";
@@ -121,5 +106,25 @@ private:
 		{ L"Binary Files",   L"*.bin" },
 		{ L"All Files",      L"*.*" }
 	};
-};
 
+	// Map of SDL2 keycodes for the various keyboard keys the CHIP-8 can handle/react to
+	const Uint8 k_KeyCodes[16] =
+	{
+		SDL_SCANCODE_0,
+		SDL_SCANCODE_1,
+		SDL_SCANCODE_2,
+		SDL_SCANCODE_3,
+		SDL_SCANCODE_4,
+		SDL_SCANCODE_5,
+		SDL_SCANCODE_6,
+		SDL_SCANCODE_7,
+		SDL_SCANCODE_8,
+		SDL_SCANCODE_9,
+		SDL_SCANCODE_A,
+		SDL_SCANCODE_B,
+		SDL_SCANCODE_C,
+		SDL_SCANCODE_D,
+		SDL_SCANCODE_E,
+		SDL_SCANCODE_F
+	};
+};

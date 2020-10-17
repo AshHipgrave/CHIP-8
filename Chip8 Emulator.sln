@@ -3,7 +3,12 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30503.244
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Chip8 Emulator", "Source/Chip8 Emulator.vcxproj", "{40406B8F-D056-4AD5-A869-F7F1718501B0}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Chip8 Emulator", "Source\Chip8 Emulator.vcxproj", "{40406B8F-D056-4AD5-A869-F7F1718501B0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{3FCC1D18-9004-4515-85C4-D12ED5567E67} = {3FCC1D18-9004-4515-85C4-D12ED5567E67}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImGui_SDL", "ThirdParty\ImGUI_SDL\ImGui_SDL.vcxproj", "{3FCC1D18-9004-4515-85C4-D12ED5567E67}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +26,14 @@ Global
 		{40406B8F-D056-4AD5-A869-F7F1718501B0}.Release|x64.Build.0 = Release|x64
 		{40406B8F-D056-4AD5-A869-F7F1718501B0}.Release|x86.ActiveCfg = Release|Win32
 		{40406B8F-D056-4AD5-A869-F7F1718501B0}.Release|x86.Build.0 = Release|Win32
+		{3FCC1D18-9004-4515-85C4-D12ED5567E67}.Debug|x64.ActiveCfg = Debug|x64
+		{3FCC1D18-9004-4515-85C4-D12ED5567E67}.Debug|x64.Build.0 = Debug|x64
+		{3FCC1D18-9004-4515-85C4-D12ED5567E67}.Debug|x86.ActiveCfg = Debug|Win32
+		{3FCC1D18-9004-4515-85C4-D12ED5567E67}.Debug|x86.Build.0 = Debug|Win32
+		{3FCC1D18-9004-4515-85C4-D12ED5567E67}.Release|x64.ActiveCfg = Release|x64
+		{3FCC1D18-9004-4515-85C4-D12ED5567E67}.Release|x64.Build.0 = Release|x64
+		{3FCC1D18-9004-4515-85C4-D12ED5567E67}.Release|x86.ActiveCfg = Release|Win32
+		{3FCC1D18-9004-4515-85C4-D12ED5567E67}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

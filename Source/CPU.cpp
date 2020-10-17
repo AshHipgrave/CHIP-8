@@ -16,10 +16,17 @@ void CPU::Init()
 
 	if (m_CpuState->Memory != nullptr)
 	{
-		m_CpuState->VideoMemory = &m_CpuState->Memory[0xF00];
+		m_CpuState->VideoMemory = (uint8_t*)calloc(2048, 1); //&m_CpuState->Memory[0xF00];
 
 		memcpy(&m_CpuState->Memory[Sprites::FONT_START], Sprites::Font, Sprites::FONT_SIZE);
 	}
+}
+
+void CPU::Stop()
+{
+	std::cout << "INFO: CPU Stop called!" << std::endl;
+
+	m_CpuState->bIsStopped = true;
 }
 
 bool CPU::LoadProgram(const wchar_t* FilePath)
@@ -48,6 +55,8 @@ bool CPU::LoadProgram(const wchar_t* FilePath)
 
 		delete[] inBuffer;
 
+		m_CpuState->bIsStopped = false;
+
 		return true;
 	}
 
@@ -58,9 +67,11 @@ bool CPU::LoadProgram(const wchar_t* FilePath)
 
 void CPU::RunCycle()
 {
+	if (m_CpuState->bIsStopped) return;
+
 	uint8_t* opcode = &m_CpuState->Memory[m_CpuState->PC];
 
-	uint8_t highBit = (opcode[0] & 0xF0) >> 4;
+	uint8_t highBit = opcode[0] >> 4;
 
 	switch (highBit)
 	{
@@ -117,19 +128,25 @@ void CPU::Op0(uint8_t* opcode)
 {
 	if (opcode[1] == 0xE0)
 	{
-		uint16_t screenSize = 64 * 32 / 8;
-
-		memset(m_CpuState->VideoMemory, 0, screenSize);
+		memset(m_CpuState->VideoMemory, 0, 256);
 
 		m_CpuState->PC += 2;
 	}
 	else if (opcode[1] == 0xEE)
 	{
+		/* TODO - VALIDATE */
 		uint16_t address = (m_CpuState->Memory[m_CpuState->SP] << 8) | m_CpuState->Memory[m_CpuState->SP + 1];
 		
 		m_CpuState->SP += 2;
 
 		m_CpuState->PC = address;
+	}
+	else
+	{
+		std::cout << "ERROR: Unknown operation for Op0: 0x" << std::hex << std::setw(2) << static_cast<int>(opcode[1]) << std::endl;
+		Stop();
+
+		return;
 	}
 }
 
@@ -147,7 +164,7 @@ void CPU::Op2(uint8_t* opcode)
 	m_CpuState->SP -= 2;
 
 	m_CpuState->Memory[m_CpuState->SP] = ((m_CpuState->PC + 2) & 0xFF00) >> 8;
-	m_CpuState->Memory[m_CpuState->SP + 1] = ((m_CpuState->PC + 2) & 0xFF);
+	m_CpuState->Memory[m_CpuState->SP + 1] = (m_CpuState->PC + 2) & 0xFF;
 
 	m_CpuState->PC = address;
 }
@@ -273,9 +290,9 @@ void CPU::Op8(uint8_t* opcode)
 					Vx = Vx >> 1;
 			 */
 			
-			m_CpuState->V[0xF] = m_CpuState->V[yIdx] & 0x1;
+			m_CpuState->V[0xF] = m_CpuState->V[xIdx] & 0x1;
 
-			m_CpuState->V[xIdx] = m_CpuState->V[yIdx] >> 1;
+			m_CpuState->V[xIdx] = m_CpuState->V[xIdx] >> 1;
 
 			break;
 		}
@@ -302,15 +319,17 @@ void CPU::Op8(uint8_t* opcode)
 					Vx = Vx << 1;
 			 */
 
-			m_CpuState->V[0xF] = ((m_CpuState->V[yIdx] & 0x80) == 0x80);
+			m_CpuState->V[0xF] = ((m_CpuState->V[xIdx] & 0x80) == 0x80);
 
-			m_CpuState->V[xIdx] = m_CpuState->V[yIdx] << 1;
+			m_CpuState->V[xIdx] = m_CpuState->V[xIdx] << 1;
 
 			break;
 		}
 		default:
 		{
 			std::cout << "ERROR: Unknown operation for Op8: 0x" << std::hex << std::setw(2) << static_cast<int>(lowBit) << std::endl;
+			Stop();
+
 			return;
 		}
 	}
@@ -338,7 +357,7 @@ void CPU::OpA(uint8_t* opcode)
 
 void CPU::OpB(uint8_t* opcode)
 {
-	uint8_t address = (((opcode[0] & 0xF) << 8) | opcode[1]) + m_CpuState->V[0];
+	uint16_t address = ((uint16_t)m_CpuState->V[0]) + (((opcode[0] & 0xF) << 8) | opcode[1]);
 
 	m_CpuState->PC = address;
 }
@@ -354,31 +373,57 @@ void CPU::OpC(uint8_t* opcode)
 
 void CPU::OpD(uint8_t* opcode)
 {
+	uint8_t xRegister = opcode[0] & 0xF;
+	uint8_t yRegister = opcode[1] & 0x0F;
+
+	uint16_t spriteX = m_CpuState->V[xRegister >> 8];
+	uint16_t spriteY = m_CpuState->V[yRegister >> 4];
+
+	uint16_t height = opcode[1] & 0xF;
+
+	for (int row = 0; row < height; row++)
+	{
+		uint16_t pixel = m_CpuState->Memory[m_CpuState->I + row];
+		
+		for (int col = 0; col < 8; col++)
+		{
+			if ((pixel & (0x80 >> col)) != 0)
+			{
+				m_CpuState->V[0xF] = 1;
+			}
+			m_CpuState->VideoMemory[spriteX + col + ((spriteY + row) * 64)] ^= 1;
+		}
+	}
+
+	m_CpuState->PC += 2;
+
+	/*
 	uint16_t spriteSize = opcode[1] & 0xF;
 
 	uint8_t xIdx = opcode[0] & 0xF;
 	uint8_t yIdx = (opcode[1] & 0xF0) >> 4;
 
-	uint8_t xPosition = m_CpuState->V[xIdx];
-	uint8_t yPosition = m_CpuState->V[yIdx];
+	uint16_t xPosition = m_CpuState->V[xIdx];
+	uint16_t yPosition = m_CpuState->V[yIdx];
 
+	m_CpuState->V[0xF] = 0;
 
-	for (uint16_t i = 0; i < spriteSize; i++)
+	for (uint16_t row = 0; row < spriteSize; row++)
 	{
-		uint8_t* sprite = &m_CpuState->Memory[m_CpuState->I + i];
+		uint8_t* sprite = &m_CpuState->Memory[m_CpuState->I + row];
 
-		uint8_t spriteBits = 7;
+		int spriteBits = 7;
 
-		for (uint8_t j = xPosition; j < xPosition + 8 && j < 64; j++)
+		for (uint16_t col = xPosition; col < xPosition + 8 && col < 64; col++)
 		{
-			uint8_t jo = j / 8;
-			uint8_t jm = j % 8;
+			int jo = col / 8;
+			int jm = col % 8;
 
 			uint8_t srcBit = (*sprite >> spriteBits) & 0x1;
 
 			if (srcBit)
 			{
-				uint8_t* destByte = &m_CpuState->VideoMemory[(i + yPosition) * (64 / 8) + jo];
+				uint8_t* destByte = &m_CpuState->VideoMemory[(row + yPosition) * (64 / 8) + jo];
 				uint8_t destMask = (0x80) >> jm;
 				uint8_t destBit = *destByte & destMask;
 
@@ -398,6 +443,7 @@ void CPU::OpD(uint8_t* opcode)
 	}
 	
 	m_CpuState->PC += 2;
+	*/
 }
 
 void CPU::OpE(uint8_t* opcode)
@@ -423,6 +469,8 @@ void CPU::OpE(uint8_t* opcode)
 	else
 	{
 		std::cout << "ERROR: Unknown operation for OpE: 0x" << std::hex << std::setw(2) << static_cast<int>(opcode[1]) << std::endl;
+		Stop();
+
 		return;
 	}
 
@@ -540,6 +588,8 @@ void CPU::OpF(uint8_t* opcode)
 		default:
 		{
 			std::cout << "ERROR: Unknown operation for OpF: 0x" << std::hex << std::setw(2) << static_cast<int>(opcode[1]) << std::endl;
+			Stop();
+
 			return;
 		}
 	}

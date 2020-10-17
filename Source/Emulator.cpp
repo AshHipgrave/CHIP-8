@@ -29,6 +29,12 @@ bool Emulator::Initialise()
 	SDL_SetRenderDrawColor(m_Renderer, 100, 149, 237, 255);
 
 	m_RenderTexture = SDL_CreateTexture(m_Renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 64, 32);
+
+	if (m_RenderTexture == nullptr)
+	{
+		std::cout << "ERROR: Failed to create render texture: " << SDL_GetError() << std::endl;
+		return false;
+	}
 	
 	InitCpu();
 
@@ -37,6 +43,9 @@ bool Emulator::Initialise()
 		std::cout << "Failed to load to a ROM file" << std::endl;
 		return false;
 	}
+
+	m_ImGuiContext = new ImGuiImpl();
+	m_ImGuiContext->Init(m_Renderer, k_WindowWidth, k_WindowHeight);
 
 	return true;
 }
@@ -59,7 +68,7 @@ void Emulator::Run()
 
 		HandleEvents();
 
-		if (m_bIsRunning) // 'm_bIsRunning' may have been set to 'false' as part of 'HandleEvents'. We don't want to just blindly continue executing if SDL has been torn down
+		if (!m_Cpu->GetState()->bIsStopped)
 		{
 			Update();
 
@@ -67,6 +76,9 @@ void Emulator::Run()
 
 			Draw();
 		}
+
+		if (m_Cpu->GetState()->bIsStopped)
+			m_bIsRunning = false;
 	}
 }
 
@@ -127,10 +139,14 @@ void Emulator::HandleEvents()
 			}
 		}
 	}
+
+	m_ImGuiContext->HandleEvent(&sdlEvent);
 }
 
 void Emulator::Update()
 {
+	m_ImGuiContext->Update();
+
 	m_KeyStates = const_cast<Uint8*>(SDL_GetKeyboardState(0));
 
 	for (Uint8 i = 0; i < 16; i++)
@@ -144,26 +160,27 @@ void Emulator::Update()
 			m_Cpu->ClearKeyState(i);
 		}
 	}
+
+	UpdateTimers();
 }
 
 void Emulator::Draw()
 {
-	uint8_t* vram = m_Cpu->GetState()->VideoMemory;
-	
-	uint32_t pixels[2048];
-
-	for (int i = 0; i < 2048; ++i)
+	for (int i = 0; i < 2048; i++)
 	{
-		uint8_t pixel = vram[i];
-		pixels[i] = (0x00FFFFFF * pixel) | 0xFF000000;
+		uint8_t pixel = m_Cpu->GetState()->VideoMemory[i];
+
+		m_PixelBuffer[i] = (0x00FFFFFF * pixel) | 0xFF000000;
 	}
 
-	// Update SDL texture
-	SDL_UpdateTexture(m_RenderTexture, NULL, pixels, 64 * sizeof(Uint32));
+	SDL_UpdateTexture(m_RenderTexture, NULL, m_PixelBuffer, 64 * sizeof(uint32_t));
 
-	// Clear screen and render
 	SDL_RenderClear(m_Renderer);
+
 	SDL_RenderCopy(m_Renderer, m_RenderTexture, NULL, NULL);
+
+	m_ImGuiContext->Draw(m_Cpu);
+
 	SDL_RenderPresent(m_Renderer);
 }
 
@@ -196,6 +213,8 @@ void Emulator::UpdateTimers()
 void Emulator::Stop()
 {
 	m_bIsRunning = false;
+
+	m_Cpu->Stop();
 
 	if (m_RenderTexture != nullptr)
 		SDL_DestroyTexture(m_RenderTexture);

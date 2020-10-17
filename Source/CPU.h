@@ -44,6 +44,9 @@ struct ChipState
 	
 	// Set to true if the CPU is paused waiting for a key to be pressed. Otherwise set to false.
 	bool bIsWaitingForKeyPress = false;
+
+	// If set to true the CPU won't execute any more instructions
+	bool bIsStopped = true;
 };
 
 /**
@@ -55,11 +58,18 @@ private:
 	// Pointer to the current execution state of the CPU
 	ChipState* m_CpuState = nullptr;
 
+	friend class ImGuiImpl;
+
 public:
 	/// <summary>
 	/// Initialises the CPU and sets the initial state. Must be called before trying to load a program.
 	/// </summary>
 	void Init();
+
+	/// <summary>
+	/// Stops the CPU executing any more instructions
+	/// </summary>
+	void Stop();
 
 	/// <summary>
 	/// Loads a ROM into the CPU's memory at address 0x200. CPU must be initialised before calling this function.
