@@ -1,5 +1,9 @@
 #pragma once
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "EmulatorCommon.h"
+
+#include <errno.h>
 
 #include "Sprites.h"
 

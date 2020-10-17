@@ -51,6 +51,8 @@ bool CPU::LoadProgram(const wchar_t* FilePath)
 		return true;
 	}
 
+	std::cout << "ERROR: Failed to open input '" << *FilePath << "': " << strerror(errno) << std::endl;
+
 	return false;
 }
 
