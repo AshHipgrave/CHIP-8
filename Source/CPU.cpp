@@ -30,6 +30,11 @@ void CPU::Init()
 		m_CpuState->PreviousKeyState[i] = 0;
 	}
 
+	for (int i = 0; i < 80; i++)
+	{
+		m_CpuState->Memory[i] = Sprites::Font[i];
+	}
+
 	srand(time(NULL));
 
 	//m_CpuState->VideoMemory = (uint8_t*)calloc(2048, 1); //&m_CpuState->Memory[0xF00];
@@ -114,11 +119,13 @@ void CPU::RunCycle()
 {
 	if (m_CpuState->bIsStopped) return;
 
+	static long long instruction_count = 0;
+
 	uint16_t opcode = m_CpuState->Memory[m_CpuState->PC] << 8 | m_CpuState->Memory[m_CpuState->PC + 1];
 
-	uint16_t highBit = opcode & 0xF000;
+	//uint16_t highBit = opcode & 0xF000;
 
-	switch (highBit)
+	switch (opcode & 0xF000)
 	{
 		case 0x0000: Op0(opcode); break;
 		case 0x1000: Op1(opcode); break;
@@ -138,7 +145,7 @@ void CPU::RunCycle()
 		case 0xF000: OpF(opcode); break;
 		default:
 		{
-			std::cout << "ERROR: Unknown OpCode: 0x" << std::hex << std::setw(2) << static_cast<int>(highBit) << std::endl;
+			std::cout << "ERROR: Unknown OpCode:" << std::hex << static_cast<int>(opcode) << std::endl;
 			Stop();
 
 			break;
@@ -152,7 +159,11 @@ void CPU::Op0(uint16_t opcode)
 	{
 		case 0x0000:
 		{
-			memset(m_CpuState->VideoMemory, 0, 2048);
+			for (int i = 0; i < 2048; i++)
+			{
+				m_CpuState->VideoMemory[i] = 0;
+			}
+			//memset(m_CpuState->VideoMemory, 0, 2048);
 
 			m_CpuState->PC += 2;
 			break;
@@ -186,105 +197,98 @@ void CPU::Op2(uint16_t opcode)
 	m_CpuState->Stack[m_CpuState->SP] = m_CpuState->PC;
 	m_CpuState->SP++;
 
-	m_CpuState->PC = opcode & 0xFFFF;
+	m_CpuState->PC = opcode & 0x0FFF;
 }
 
 void CPU::Op3(uint16_t opcode)
 {
-	uint8_t registerIdx = (opcode & 0x0F00) >> 8;
-
-	uint8_t value = opcode & 0x00FF;
-
-	if (m_CpuState->V[registerIdx] == value)
+	if (m_CpuState->V[(opcode & 0x0F00) >> 8] == (opcode & 0x00FF))
+	{
+		m_CpuState->PC += 4;
+	}
+	else
 	{
 		m_CpuState->PC += 2;
 	}
-	m_CpuState->PC += 2;
 }
 
 void CPU::Op4(uint16_t opcode)
 {
-	uint8_t registerIdx = (opcode & 0x0F00) >> 8;
-
-	uint8_t value = opcode & 0x00FF;
-
-	if (m_CpuState->V[registerIdx] != value)
+	if (m_CpuState->V[(opcode & 0x0F00) >> 8] != (opcode & 0x00FF))
+	{
+		m_CpuState->PC += 4;
+	}
+	else
 	{
 		m_CpuState->PC += 2;
 	}
-	m_CpuState->PC += 2;
 }
 
 void CPU::Op5(uint16_t opcode)
 {
-	uint8_t xIdx = (opcode & 0x0F00) >> 8;
-	uint8_t yIdx = (opcode & 0x00FF) >> 4;
-
-	if (m_CpuState->V[xIdx] == m_CpuState->V[yIdx])
+	if (m_CpuState->V[(opcode & 0x0F00) >> 8] == m_CpuState->V[(opcode & 0x00F0 >> 4)])
+	{
+		m_CpuState->PC += 4;
+	}
+	else
 	{
 		m_CpuState->PC += 2;
 	}
-	m_CpuState->PC += 2;
 }
 
 void CPU::Op6(uint16_t opcode)
 {
-	uint8_t registerIdx = (opcode & 0x0F00) >> 8;
-	uint8_t value = opcode & 0x00FFF;
-
-	m_CpuState->V[registerIdx] = value;
+	m_CpuState->V[(opcode & 0x0F00) >> 8] = opcode & 0x00FF;
 
 	m_CpuState->PC += 2;
 }
 
 void CPU::Op7(uint16_t opcode)
 {
-	uint8_t registerIdx = (opcode & 0x0F00) >> 8;
-	uint8_t value = opcode & 0x00FF;
-
-	m_CpuState->V[registerIdx] += value;
+	m_CpuState->V[(opcode & 0x0F00) >> 8] += opcode & 0x00FF;
 
 	m_CpuState->PC += 2;
 }
 
 void CPU::Op8(uint16_t opcode)
 {
-	uint8_t lowBit = opcode & 0x000F;
-
-	uint8_t xIdx = (opcode & 0x0F00) >> 8;
-	uint8_t yIdx = (opcode & 0x00F0) >> 4;
-
-	switch (lowBit)
+	switch (opcode & 0x000F)
 	{
 		case 0x0000:
 		{
-			m_CpuState->V[xIdx] = m_CpuState->V[yIdx];
+			m_CpuState->V[(opcode & 0x0F00) >> 8] = m_CpuState->V[(opcode & 0x00F0) >> 4];
 
+			m_CpuState->PC += 2;
 			break;
 		}
 		case 0x0001:
 		{
-			m_CpuState->V[xIdx] |= m_CpuState->V[yIdx];
+			m_CpuState->V[(opcode & 0x00F00) >> 8] |= m_CpuState->V[(opcode & 0x00F0) >> 4];
 			
+			m_CpuState->PC += 2;
 			break;
 		}
 		case 0x0002:
 		{
-			m_CpuState->V[xIdx] &= m_CpuState->V[yIdx];
+			m_CpuState->V[(opcode & 0x0F00) >> 8] &= m_CpuState->V[(opcode & 0x00F0) >> 4];
+
+			m_CpuState->PC += 2;
 
 			break;
 		}
 		case 0x0003:
 		{
-			m_CpuState->V[xIdx] ^= m_CpuState->V[yIdx];
+			m_CpuState->V[(opcode & 0x0F00) >> 8] ^= m_CpuState->V[(opcode & 0x00F0) >> 4];
+
+			m_CpuState->PC += 2;
 
 			break;
 		}
 		case 0x0004:
 		{
-			m_CpuState->V[xIdx] += m_CpuState->V[yIdx];
+			m_CpuState->V[(opcode & 0x0F00) >> 8] += m_CpuState->V[(opcode & 0x00F0) >> 4];
 
-			if (m_CpuState->V[xIdx] > (0xFF - m_CpuState->V[yIdx]))
+			if (m_CpuState->V[(opcode & 0x00F0) >> 4] > (0xFF - m_CpuState->V[(opcode & 0x0F00) >> 8]))
 			{
 				m_CpuState->V[0xF] = 1;
 			}
@@ -293,87 +297,82 @@ void CPU::Op8(uint16_t opcode)
 				m_CpuState->V[0xF] = 0;
 			}
 
+			m_CpuState->PC += 2;
+
 			break;
 		}
 		case 0x0005:
 		{
-			bool bIsBorrow = (m_CpuState->V[xIdx] > m_CpuState->V[yIdx]);
+			if (m_CpuState->V[(opcode & 0x00F0) >> 4] > m_CpuState->V[(opcode & 0x0F00) >> 8])
+			{
+				m_CpuState->V[0xF] = 0;
+			}
+			else
+			{
+				m_CpuState->V[0xF] = 1;
+			}
 			
-			m_CpuState->V[xIdx] -= m_CpuState->V[yIdx];
+			m_CpuState->V[(opcode & 0x0F00) >> 8] -= m_CpuState->V[(opcode & 0x00F0) >> 4];
 
-			m_CpuState->V[0xF] = bIsBorrow ? 0 : 1;
-
+			m_CpuState->PC += 2;
 			break;
 		}
 		case 0x0006:
 		{
-			/* TODO: 
-			 * Documentation on this instruction super patchy. Some places say the instruction only operates on Vx, others say this is incorrect and it actually operates on Vy, storing the result in Vx.
-			 * Need to review this once up and running to determine which is correct. Currently implemented as: 
-					VF = Vy & 0x1; 
-					Vx = Vy >> 1;
+			m_CpuState->V[0xF] = m_CpuState->V[(opcode & 0x0F00) >> 8] & 0x1;
 
-			 * Alternative is:
-					VF = Vx & 0x1;
-					Vx = Vx >> 1;
-			 */
-			
-			m_CpuState->V[0xF] = m_CpuState->V[yIdx] & 0x1;
+			m_CpuState->V[(opcode & 0x0F00) >> 8] >>= 1;
 
-			m_CpuState->V[xIdx] = m_CpuState->V[yIdx] >> 1;
+			m_CpuState->PC += 2;
 
 			break;
 		}
 		case 0x0007:
 		{
-			bool bIsBorrow = (m_CpuState->V[yIdx] > m_CpuState->V[xIdx]);
+			if (m_CpuState->V[(opcode & 0x0F00) >> 8] > m_CpuState->V[(opcode & 0x00F0) >> 4])
+			{
+				m_CpuState->V[0xF] = 0;
+			}
+			else
+			{
+				m_CpuState->V[0xF] = 1;
+			}
 
-			m_CpuState->V[xIdx] = (m_CpuState->V[yIdx] - m_CpuState->V[xIdx]);
+			m_CpuState->V[(opcode & 0x0F00) >> 8] = m_CpuState->V[(opcode & 0x00F0) >> 4] - m_CpuState->V[(opcode & 0x0F00) >> 8];
 
-			m_CpuState->V[0xF] = bIsBorrow ? 0 : 1;
+			m_CpuState->PC += 2;
 
 			break;
 		}
 		case 0x000E:
 		{
-			/* TODO:
-			 * Documentation on this instruction super patchy. Some places say the instruction only operates on Vx, others say this is incorrect and it actually operates on Vy, storing the result in Vx.
-			 * Need to review this once up and running to determine which is correct. Currently implemented as:
-					VF = Vy & 0x80;
-					Vx = Vy << 1;
+			m_CpuState->V[0xF] = m_CpuState->V[(opcode & 0x0F00) >> 8] >> 7;
+			m_CpuState->V[(opcode & 0x0F00) >> 8] <<= 1;
 
-			 * Alternative is:
-					VF = Vx & 0x80;
-					Vx = Vx << 1;
-			 */
-
-			m_CpuState->V[0xF] = m_CpuState->V[yIdx] >> 7;
-
-			m_CpuState->V[xIdx] = m_CpuState->V[yIdx] << 1;
+			m_CpuState->PC += 2;
 
 			break;
 		}
 		default:
 		{
-			std::cout << "ERROR: Unknown operation for Op8: 0x" << std::hex << std::setw(2) << static_cast<int>(lowBit) << std::endl;
+			std::cout << "ERROR: Unknown operation for Op8: 0x" << std::hex << std::setw(2) << static_cast<int>(opcode) << std::endl;
 			Stop();
 
 			return;
 		}
 	}
-	m_CpuState->PC += 2;
 }
 
 void CPU::Op9(uint16_t opcode)
 {
-	uint8_t xIdx = (opcode & 0x0F00) >> 8;
-	uint8_t yIdx = (opcode & 0x00F0) >> 4;
-
-	if (m_CpuState->V[xIdx] != m_CpuState->V[yIdx])
+	if (m_CpuState->V[(opcode & 0x0F00) >> 8] != m_CpuState->V[(opcode & 0x00F0) >> 4])
+	{
+		m_CpuState->PC += 4;
+	}
+	else
 	{
 		m_CpuState->PC += 2;
 	}
-	m_CpuState->PC += 2;
 }
 
 void CPU::OpA(uint16_t opcode)
@@ -392,20 +391,15 @@ void CPU::OpB(uint16_t opcode)
 
 void CPU::OpC(uint16_t opcode)
 {
-	uint8_t registerIdx = (opcode & 0x0F00) >> 8;
-
-	m_CpuState->V[registerIdx] = (rand() % 256) & (opcode & 0x00FF);
+	m_CpuState->V[(opcode & 0x0F00) >> 8] = (rand() % (0xFF + 1)) & (opcode & 0x00FF);
 
 	m_CpuState->PC += 2;
 }
 
 void CPU::OpD(uint16_t opcode)
 {
-	uint8_t xRegister = (opcode & 0x0F00) >> 8;
-	uint8_t yRegister = (opcode & 0x00F0) >> 4;
-
-	uint16_t spriteX = m_CpuState->V[xRegister];
-	uint16_t spriteY = m_CpuState->V[yRegister];
+	uint16_t spriteX = m_CpuState->V[(opcode & 0x0F00) >> 8];
+	uint16_t spriteY = m_CpuState->V[(opcode & 0x00F0) >> 4];
 
 	uint16_t height = opcode & 0x000F;
 
@@ -419,9 +413,12 @@ void CPU::OpD(uint16_t opcode)
 		{
 			if ((pixel & (0x80 >> col)) != 0)
 			{
-				m_CpuState->V[0xF] = 1;
+				if (m_CpuState->VideoMemory[(spriteX + col + ((spriteY + row) * 64))] == 1)
+				{
+					m_CpuState->V[0xF] = 1;
+				}
+				m_CpuState->VideoMemory[spriteX + col + ((spriteY + row) * 64)] ^= 1;
 			}
-			m_CpuState->VideoMemory[spriteX + col + ((spriteY + row) * 64)] ^= 1;
 		}
 	}
 
@@ -468,7 +465,7 @@ void CPU::OpE(uint16_t opcode)
 
 void CPU::OpF(uint16_t opcode)
 {
-	uint8_t registerIdx = (opcode & 0x0F00) >> 8;
+	uint16_t registerIdx = (opcode & 0x0F00) >> 8;
 
 	uint16_t lowByte = opcode & 0x00FF;
 

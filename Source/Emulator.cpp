@@ -30,7 +30,7 @@ bool Emulator::InitSDL()
 	}
 
 	m_Renderer = SDL_CreateRenderer(m_GameWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-	SDL_RenderSetLogicalSize(m_Renderer, k_WindowWidth, k_WindowHeight);
+	//SDL_RenderSetLogicalSize(m_Renderer, k_WindowWidth, k_WindowHeight);
 
 	if (m_Renderer == nullptr)
 	{
