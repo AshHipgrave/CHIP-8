@@ -10,16 +10,56 @@ void CPU::Init()
 	m_CpuState->Sound = 0;
 
 	m_CpuState->PC = 0x200;
-	m_CpuState->SP = 0xFA0;
+	m_CpuState->SP = 0;
 
-	m_CpuState->Memory = (uint8_t*)calloc(4096, 1);
-
-	if (m_CpuState->Memory != nullptr)
+	for (int i = 0; i < 4096; i++)
 	{
-		m_CpuState->VideoMemory = (uint8_t*)calloc(2048, 1); //&m_CpuState->Memory[0xF00];
-
-		memcpy(&m_CpuState->Memory[Sprites::FONT_START], Sprites::Font, Sprites::FONT_SIZE);
+		m_CpuState->Memory[i] = 0;
 	}
+
+	for (int i = 0; i < 2048; i++)
+	{
+		m_CpuState->VideoMemory[i] = 0;
+	}
+
+	for (int i = 0; i < 16; i++)
+	{
+		m_CpuState->V[i] = 0;
+		m_CpuState->Stack[i] = 0;
+		m_CpuState->KeyState[i] = 0;
+		m_CpuState->PreviousKeyState[i] = 0;
+	}
+
+	srand(time(NULL));
+
+	//m_CpuState->VideoMemory = (uint8_t*)calloc(2048, 1); //&m_CpuState->Memory[0xF00];
+
+	//memcpy(&m_CpuState->Memory[Sprites::FONT_START], Sprites::Font, Sprites::FONT_SIZE);
+}
+
+void CPU::SetKeyState(uint8_t keycode)
+{
+	m_CpuState->KeyState[keycode] = 1;
+}
+
+void CPU::ClearKeyState(uint8_t keycode)
+{
+	m_CpuState->KeyState[keycode] = 0;
+}
+
+void CPU::SetDelayRegister(uint8_t value)
+{
+	m_CpuState->Delay = value;
+}
+
+void CPU::SetSoundRegister(uint8_t value)
+{
+	m_CpuState->Sound = value;
+}
+
+const ChipState* CPU::GetState() const
+{
+	return m_CpuState;
 }
 
 void CPU::Stop()
@@ -49,11 +89,16 @@ bool CPU::LoadProgram(const wchar_t* FilePath)
 		inputFile.read(inBuffer, fileSize);
 		inputFile.close();
 
-		uint8_t* memBuffer = &m_CpuState->Memory[0x200];
+		for (int i = 0; i < fileSize; i++)
+		{
+			m_CpuState->Memory[i + 512] = (uint8_t)inBuffer[i];
+		}
 
-		memcpy(memBuffer, inBuffer, fileSize);
+		//uint8_t* memBuffer = &m_CpuState->Memory[0x200];
 
-		delete[] inBuffer;
+		//memcpy(memBuffer, inBuffer, fileSize);
+
+		//delete[] inBuffer;
 
 		m_CpuState->bIsStopped = false;
 
@@ -69,132 +114,111 @@ void CPU::RunCycle()
 {
 	if (m_CpuState->bIsStopped) return;
 
-	uint8_t* opcode = &m_CpuState->Memory[m_CpuState->PC];
+	uint16_t opcode = m_CpuState->Memory[m_CpuState->PC] << 8 | m_CpuState->Memory[m_CpuState->PC + 1];
 
-	uint8_t highBit = opcode[0] >> 4;
+	uint16_t highBit = opcode & 0xF000;
 
 	switch (highBit)
 	{
-		case 0x00: Op0(opcode); break;
-		case 0x01: Op1(opcode); break;
-		case 0x02: Op2(opcode); break;
-		case 0x03: Op3(opcode); break;
-		case 0x04: Op4(opcode); break;
-		case 0x05: Op5(opcode); break;
-		case 0x06: Op6(opcode); break;
-		case 0x07: Op7(opcode); break;
-		case 0x08: Op8(opcode); break;
-		case 0x09: Op9(opcode); break;
-		case 0x0A: OpA(opcode); break;
-		case 0x0B: OpB(opcode); break;
-		case 0x0C: OpC(opcode); break;
-		case 0x0D: OpD(opcode); break;
-		case 0x0E: OpE(opcode); break;
-		case 0x0F: OpF(opcode); break;
+		case 0x0000: Op0(opcode); break;
+		case 0x1000: Op1(opcode); break;
+		case 0x2000: Op2(opcode); break;
+		case 0x3000: Op3(opcode); break;
+		case 0x4000: Op4(opcode); break;
+		case 0x5000: Op5(opcode); break;
+		case 0x6000: Op6(opcode); break;
+		case 0x7000: Op7(opcode); break;
+		case 0x8000: Op8(opcode); break;
+		case 0x9000: Op9(opcode); break;
+		case 0xA000: OpA(opcode); break;
+		case 0xB000: OpB(opcode); break;
+		case 0xC000: OpC(opcode); break;
+		case 0xD000: OpD(opcode); break;
+		case 0xE000: OpE(opcode); break;
+		case 0xF000: OpF(opcode); break;
 		default:
 		{
 			std::cout << "ERROR: Unknown OpCode: 0x" << std::hex << std::setw(2) << static_cast<int>(highBit) << std::endl;
+			Stop();
+
 			break;
 		}
 	}
 }
 
-void CPU::SetKeyState(uint8_t keycode)
+void CPU::Op0(uint16_t opcode)
 {
-	m_CpuState->KeyState[keycode] = 0x1;
-}
-
-void CPU::ClearKeyState(uint8_t keycode)
-{
-	m_CpuState->KeyState[keycode] = 0x0;
-}
-
-void CPU::SetDelayRegister(uint8_t value)
-{
-	m_CpuState->Delay = value;
-}
-
-void CPU::SetSoundRegister(uint8_t value)
-{
-	m_CpuState->Sound = value;
-}
-
-const ChipState* CPU::GetState() const
-{
-	return m_CpuState;
-}
-
-void CPU::Op0(uint8_t* opcode)
-{
-	if (opcode[1] == 0xE0)
+	switch (opcode & 0x000F)
 	{
-		memset(m_CpuState->VideoMemory, 0, 256);
+		case 0x0000:
+		{
+			memset(m_CpuState->VideoMemory, 0, 2048);
 
-		m_CpuState->PC += 2;
-	}
-	else if (opcode[1] == 0xEE)
-	{
-		/* TODO - VALIDATE */
-		uint16_t address = (m_CpuState->Memory[m_CpuState->SP] << 8) | m_CpuState->Memory[m_CpuState->SP + 1];
-		
-		m_CpuState->SP += 2;
+			m_CpuState->PC += 2;
+			break;
+		}
+		case 0x000E:
+		{
+			m_CpuState->SP--;
 
-		m_CpuState->PC = address;
-	}
-	else
-	{
-		std::cout << "ERROR: Unknown operation for Op0: 0x" << std::hex << std::setw(2) << static_cast<int>(opcode[1]) << std::endl;
-		Stop();
+			m_CpuState->PC = m_CpuState->Stack[m_CpuState->SP];
 
-		return;
+			m_CpuState->PC += 2; //TODO: Check this
+			break;
+		}
+		default:
+		{
+			std::cout << "ERROR: Unknown operation for Op0: 0x" << std::hex << static_cast<int>(opcode) << std::endl;
+			Stop();
+
+			return;
+		}
 	}
 }
 
-void CPU::Op1(uint8_t* opcode)
+void CPU::Op1(uint16_t opcode)
 {
-	uint16_t address = ((opcode[0] & 0xF) << 8) | opcode[1];
-
-	m_CpuState->PC = address;
+	m_CpuState->PC = opcode & 0x0FFF;
 }
 
-void CPU::Op2(uint8_t* opcode)
+void CPU::Op2(uint16_t opcode)
 {
-	uint16_t address = ((opcode[0] & 0xF) << 8) | opcode[1];
+	m_CpuState->Stack[m_CpuState->SP] = m_CpuState->PC;
+	m_CpuState->SP++;
 
-	m_CpuState->SP -= 2;
-
-	m_CpuState->Memory[m_CpuState->SP] = ((m_CpuState->PC + 2) & 0xFF00) >> 8;
-	m_CpuState->Memory[m_CpuState->SP + 1] = (m_CpuState->PC + 2) & 0xFF;
-
-	m_CpuState->PC = address;
+	m_CpuState->PC = opcode & 0xFFFF;
 }
 
-void CPU::Op3(uint8_t* opcode)
+void CPU::Op3(uint16_t opcode)
 {
-	uint8_t registerIdx = opcode[0] & 0xF;
+	uint8_t registerIdx = (opcode & 0x0F00) >> 8;
 
-	if (m_CpuState->V[registerIdx] == opcode[1])
+	uint8_t value = opcode & 0x00FF;
+
+	if (m_CpuState->V[registerIdx] == value)
 	{
 		m_CpuState->PC += 2;
 	}
 	m_CpuState->PC += 2;
 }
 
-void CPU::Op4(uint8_t* opcode)
+void CPU::Op4(uint16_t opcode)
 {
-	uint8_t registerIdx = opcode[0] & 0xF;
+	uint8_t registerIdx = (opcode & 0x0F00) >> 8;
 
-	if (m_CpuState->V[registerIdx] != opcode[1])
+	uint8_t value = opcode & 0x00FF;
+
+	if (m_CpuState->V[registerIdx] != value)
 	{
 		m_CpuState->PC += 2;
 	}
 	m_CpuState->PC += 2;
 }
 
-void CPU::Op5(uint8_t* opcode)
+void CPU::Op5(uint16_t opcode)
 {
-	uint8_t xIdx = opcode[0] & 0xF;
-	uint8_t yIdx = (opcode[1] & 0xF0) >> 4;
+	uint8_t xIdx = (opcode & 0x0F00) >> 8;
+	uint8_t yIdx = (opcode & 0x00FF) >> 4;
 
 	if (m_CpuState->V[xIdx] == m_CpuState->V[yIdx])
 	{
@@ -203,58 +227,64 @@ void CPU::Op5(uint8_t* opcode)
 	m_CpuState->PC += 2;
 }
 
-void CPU::Op6(uint8_t* opcode)
+void CPU::Op6(uint16_t opcode)
 {
-	uint8_t registerIdx = opcode[0] & 0xF;
+	uint8_t registerIdx = (opcode & 0x0F00) >> 8;
+	uint8_t value = opcode & 0x00FFF;
 
-	m_CpuState->V[registerIdx] = opcode[1];
+	m_CpuState->V[registerIdx] = value;
 
 	m_CpuState->PC += 2;
 }
 
-void CPU::Op7(uint8_t* opcode)
+void CPU::Op7(uint16_t opcode)
 {
-	uint8_t registerIdx = opcode[0] & 0xF;
+	uint8_t registerIdx = (opcode & 0x0F00) >> 8;
+	uint8_t value = opcode & 0x00FF;
 
-	m_CpuState->V[registerIdx] += opcode[1];
+	m_CpuState->V[registerIdx] += value;
 
 	m_CpuState->PC += 2;
 }
 
-void CPU::Op8(uint8_t* opcode)
+void CPU::Op8(uint16_t opcode)
 {
-	uint8_t lowBit = opcode[1] & 0xF;
+	uint8_t lowBit = opcode & 0x000F;
 
-	uint8_t xIdx = opcode[0] & 0xF;
-	uint8_t yIdx = (opcode[1] & 0xF0) >> 4;
+	uint8_t xIdx = (opcode & 0x0F00) >> 8;
+	uint8_t yIdx = (opcode & 0x00F0) >> 4;
 
 	switch (lowBit)
 	{
-		case 0x0:
+		case 0x0000:
 		{
 			m_CpuState->V[xIdx] = m_CpuState->V[yIdx];
+
 			break;
 		}
-		case 0x1:
+		case 0x0001:
 		{
 			m_CpuState->V[xIdx] |= m_CpuState->V[yIdx];
+			
 			break;
 		}
-		case 0x2:
+		case 0x0002:
 		{
 			m_CpuState->V[xIdx] &= m_CpuState->V[yIdx];
+
 			break;
 		}
-		case 0x3:
+		case 0x0003:
 		{
 			m_CpuState->V[xIdx] ^= m_CpuState->V[yIdx];
+
 			break;
 		}
-		case 0x4:
+		case 0x0004:
 		{
-			uint16_t result = m_CpuState->V[xIdx] + m_CpuState->V[yIdx];
+			m_CpuState->V[xIdx] += m_CpuState->V[yIdx];
 
-			if (result & 0xFF00)
+			if (m_CpuState->V[xIdx] > (0xFF - m_CpuState->V[yIdx]))
 			{
 				m_CpuState->V[0xF] = 1;
 			}
@@ -263,21 +293,19 @@ void CPU::Op8(uint8_t* opcode)
 				m_CpuState->V[0xF] = 0;
 			}
 
-			m_CpuState->V[xIdx] = result & 0xFF;
-
 			break;
 		}
-		case 0x5:
+		case 0x0005:
 		{
-			int bIsBorrow = (m_CpuState->V[xIdx] > m_CpuState->V[yIdx]);
+			bool bIsBorrow = (m_CpuState->V[xIdx] > m_CpuState->V[yIdx]);
 			
 			m_CpuState->V[xIdx] -= m_CpuState->V[yIdx];
 
-			m_CpuState->V[0xF] = bIsBorrow;
+			m_CpuState->V[0xF] = bIsBorrow ? 0 : 1;
 
 			break;
 		}
-		case 0x6:
+		case 0x0006:
 		{
 			/* TODO: 
 			 * Documentation on this instruction super patchy. Some places say the instruction only operates on Vx, others say this is incorrect and it actually operates on Vy, storing the result in Vx.
@@ -290,23 +318,23 @@ void CPU::Op8(uint8_t* opcode)
 					Vx = Vx >> 1;
 			 */
 			
-			m_CpuState->V[0xF] = m_CpuState->V[xIdx] & 0x1;
+			m_CpuState->V[0xF] = m_CpuState->V[yIdx] & 0x1;
 
-			m_CpuState->V[xIdx] = m_CpuState->V[xIdx] >> 1;
+			m_CpuState->V[xIdx] = m_CpuState->V[yIdx] >> 1;
 
 			break;
 		}
-		case 0x7:
+		case 0x0007:
 		{
-			int bIsBorrow = (m_CpuState->V[yIdx] > m_CpuState->V[xIdx]);
+			bool bIsBorrow = (m_CpuState->V[yIdx] > m_CpuState->V[xIdx]);
 
 			m_CpuState->V[xIdx] = (m_CpuState->V[yIdx] - m_CpuState->V[xIdx]);
 
-			m_CpuState->V[0xF] = bIsBorrow;
+			m_CpuState->V[0xF] = bIsBorrow ? 0 : 1;
 
 			break;
 		}
-		case 0xE:
+		case 0x000E:
 		{
 			/* TODO:
 			 * Documentation on this instruction super patchy. Some places say the instruction only operates on Vx, others say this is incorrect and it actually operates on Vy, storing the result in Vx.
@@ -319,9 +347,9 @@ void CPU::Op8(uint8_t* opcode)
 					Vx = Vx << 1;
 			 */
 
-			m_CpuState->V[0xF] = ((m_CpuState->V[xIdx] & 0x80) == 0x80);
+			m_CpuState->V[0xF] = m_CpuState->V[yIdx] >> 7;
 
-			m_CpuState->V[xIdx] = m_CpuState->V[xIdx] << 1;
+			m_CpuState->V[xIdx] = m_CpuState->V[yIdx] << 1;
 
 			break;
 		}
@@ -336,10 +364,10 @@ void CPU::Op8(uint8_t* opcode)
 	m_CpuState->PC += 2;
 }
 
-void CPU::Op9(uint8_t* opcode)
+void CPU::Op9(uint16_t opcode)
 {
-	uint8_t xIdx = opcode[0] & 0xF;
-	uint8_t yIdx = (opcode[1] & 0xF0) >> 4;
+	uint8_t xIdx = (opcode & 0x0F00) >> 8;
+	uint8_t yIdx = (opcode & 0x00F0) >> 4;
 
 	if (m_CpuState->V[xIdx] != m_CpuState->V[yIdx])
 	{
@@ -348,38 +376,40 @@ void CPU::Op9(uint8_t* opcode)
 	m_CpuState->PC += 2;
 }
 
-void CPU::OpA(uint8_t* opcode)
+void CPU::OpA(uint16_t opcode)
 {
-	m_CpuState->I = ((opcode[0] & 0xF) << 8) | opcode[1];
+	m_CpuState->I = opcode & 0x0FFF;
 
 	m_CpuState->PC += 2;
 }
 
-void CPU::OpB(uint8_t* opcode)
+void CPU::OpB(uint16_t opcode)
 {
-	uint16_t address = ((uint16_t)m_CpuState->V[0]) + (((opcode[0] & 0xF) << 8) | opcode[1]);
+	uint16_t address = (opcode & 0x0FFF) + m_CpuState->V[0];
 
 	m_CpuState->PC = address;
 }
 
-void CPU::OpC(uint8_t* opcode)
+void CPU::OpC(uint16_t opcode)
 {
-	uint8_t registerIdx = opcode[0] & 0xF;
+	uint8_t registerIdx = (opcode & 0x0F00) >> 8;
 
-	m_CpuState->V[registerIdx] = (rand() % 256) & opcode[1];
+	m_CpuState->V[registerIdx] = (rand() % 256) & (opcode & 0x00FF);
 
 	m_CpuState->PC += 2;
 }
 
-void CPU::OpD(uint8_t* opcode)
+void CPU::OpD(uint16_t opcode)
 {
-	uint8_t xRegister = opcode[0] & 0xF;
-	uint8_t yRegister = opcode[1] & 0x0F;
+	uint8_t xRegister = (opcode & 0x0F00) >> 8;
+	uint8_t yRegister = (opcode & 0x00F0) >> 4;
 
-	uint16_t spriteX = m_CpuState->V[xRegister >> 8];
-	uint16_t spriteY = m_CpuState->V[yRegister >> 4];
+	uint16_t spriteX = m_CpuState->V[xRegister];
+	uint16_t spriteY = m_CpuState->V[yRegister];
 
-	uint16_t height = opcode[1] & 0xF;
+	uint16_t height = opcode & 0x000F;
+
+	m_CpuState->V[0xF] = 0;
 
 	for (int row = 0; row < height; row++)
 	{
@@ -396,99 +426,60 @@ void CPU::OpD(uint8_t* opcode)
 	}
 
 	m_CpuState->PC += 2;
-
-	/*
-	uint16_t spriteSize = opcode[1] & 0xF;
-
-	uint8_t xIdx = opcode[0] & 0xF;
-	uint8_t yIdx = (opcode[1] & 0xF0) >> 4;
-
-	uint16_t xPosition = m_CpuState->V[xIdx];
-	uint16_t yPosition = m_CpuState->V[yIdx];
-
-	m_CpuState->V[0xF] = 0;
-
-	for (uint16_t row = 0; row < spriteSize; row++)
-	{
-		uint8_t* sprite = &m_CpuState->Memory[m_CpuState->I + row];
-
-		int spriteBits = 7;
-
-		for (uint16_t col = xPosition; col < xPosition + 8 && col < 64; col++)
-		{
-			int jo = col / 8;
-			int jm = col % 8;
-
-			uint8_t srcBit = (*sprite >> spriteBits) & 0x1;
-
-			if (srcBit)
-			{
-				uint8_t* destByte = &m_CpuState->VideoMemory[(row + yPosition) * (64 / 8) + jo];
-				uint8_t destMask = (0x80) >> jm;
-				uint8_t destBit = *destByte & destMask;
-
-				srcBit = srcBit << (7 - jm);
-
-				if (srcBit & destBit)
-				{
-					m_CpuState->V[0xF] = 1;
-				}
-
-				destBit ^= srcBit;
-
-				*destByte = (*destByte & ~destMask) | destBit;
-			}
-			spriteBits--;
-		}
-	}
-	
-	m_CpuState->PC += 2;
-	*/
 }
 
-void CPU::OpE(uint8_t* opcode)
+void CPU::OpE(uint16_t opcode)
 {
-	uint8_t registerIdx = opcode[0] & 0xF;
+	uint8_t registerIdx = (opcode & 0x0F00) >> 8;
 
 	uint8_t keyState = m_CpuState->KeyState[m_CpuState->V[registerIdx]];
 
-	if (opcode[1] == 0x9E)
-	{
-		if (keyState != 0x00)
-		{
-			m_CpuState->PC += 2;
-		}
-	}
-	else if (opcode[1] == 0xA1)
-	{
-		if (keyState == 0x00)
-		{
-			m_CpuState->PC += 2;
-		}
-	}
-	else
-	{
-		std::cout << "ERROR: Unknown operation for OpE: 0x" << std::hex << std::setw(2) << static_cast<int>(opcode[1]) << std::endl;
-		Stop();
+	uint16_t lowByte = opcode & 0x00FF;
 
-		return;
+	switch (lowByte)
+	{
+		case 0x009E:
+		{
+			if (keyState != 0)
+			{
+				m_CpuState->PC += 2;
+			}
+			break;
+		}
+		case 0x00A1:
+		{
+			if (keyState == 0)
+			{
+				m_CpuState->PC += 2;
+			}
+			break;
+		}
+		default:
+		{
+			std::cout << "ERROR: Unknown operation for OpE: 0x" << std::hex << std::setw(2) << static_cast<int>(opcode) << std::endl;
+			Stop();
+
+			return;
+		}
 	}
 
 	m_CpuState->PC += 2;
 }
 
-void CPU::OpF(uint8_t* opcode)
+void CPU::OpF(uint16_t opcode)
 {
-	uint8_t registerIdx = opcode[0] & 0xF;
+	uint8_t registerIdx = (opcode & 0x0F00) >> 8;
 
-	switch (opcode[1])
+	uint16_t lowByte = opcode & 0x00FF;
+
+	switch (lowByte)
 	{
-		case 0x07:
+		case 0x0007:
 		{
 			m_CpuState->V[registerIdx] = m_CpuState->Delay;
 			break;
 		}
-		case 0x0A:
+		case 0x000A:
 		{
 			if (!m_CpuState->bIsWaitingForKeyPress)
 			{
@@ -519,48 +510,46 @@ void CPU::OpF(uint8_t* opcode)
 			}
 			break;
 		}
-		case 0x15:
+		case 0x0015:
 		{
 			m_CpuState->Delay = m_CpuState->V[registerIdx];
 			break;
 		}
-		case 0x18:
+		case 0x0018:
 		{
 			m_CpuState->Sound = m_CpuState->V[registerIdx];
 			break;
 		}
-		case 0x1E:
+		case 0x001E:
 		{
+			if (m_CpuState->I + m_CpuState->V[registerIdx] > 0xFFF)
+			{
+				m_CpuState->V[0xF] = 1;
+			}
+			else
+			{
+				m_CpuState->V[0xF] = 0;
+			}
+
 			m_CpuState->I += m_CpuState->V[registerIdx];
 			break;
 		}
-		case 0x29:
+		case 0x0029:
 		{
-			m_CpuState->I = Sprites::FONT_START + (m_CpuState->V[registerIdx] * 5);
+			m_CpuState->I = Sprites::FONT_START + (m_CpuState->V[registerIdx] * 0x5);
 			break;
 		}
-		case 0x33:
+		case 0x0033:
 		{
 			uint8_t value = m_CpuState->V[registerIdx];
 
-			uint8_t ones;
-			uint8_t tens;
-			uint8_t hundreds;
-
-			ones = value % 10;
-			
-			value /= 10;
-			tens = value % 10;
-
-			hundreds = value / 10;
-
-			m_CpuState->Memory[m_CpuState->I] = hundreds;
-			m_CpuState->Memory[m_CpuState->I + 1] = tens;
-			m_CpuState->Memory[m_CpuState->I + 2] = ones;
+			m_CpuState->Memory[m_CpuState->I] = value / 100;
+			m_CpuState->Memory[m_CpuState->I + 1] = (value / 10) % 10;
+			m_CpuState->Memory[m_CpuState->I + 2] = value % 10;
 
 			break;
 		}
-		case 0x55:
+		case 0x0055:
 		{
 			uint16_t offset = m_CpuState->I;
 
@@ -573,7 +562,7 @@ void CPU::OpF(uint8_t* opcode)
 
 			break;
 		}
-		case 0x65:
+		case 0x0065:
 		{
 			uint16_t offset = m_CpuState->I;
 
@@ -587,7 +576,7 @@ void CPU::OpF(uint8_t* opcode)
 		}
 		default:
 		{
-			std::cout << "ERROR: Unknown operation for OpF: 0x" << std::hex << std::setw(2) << static_cast<int>(opcode[1]) << std::endl;
+			std::cout << "ERROR: Unknown operation for OpF: 0x" << std::hex << std::setw(2) << static_cast<int>(opcode) << std::endl;
 			Stop();
 
 			return;

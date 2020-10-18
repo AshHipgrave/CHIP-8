@@ -4,6 +4,17 @@ bool Emulator::Initialise()
 {
 	m_GameTimer = new GameTimer();
 
+	if (!InitSDL())
+		return false;
+	
+	InitCpu();
+	InitImGui();
+
+	return true;
+}
+
+bool Emulator::InitSDL()
+{
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
 	{
 		std::cout << "ERROR: Failed to initialise SDL2: " << SDL_GetError() << std::endl;
@@ -19,6 +30,7 @@ bool Emulator::Initialise()
 	}
 
 	m_Renderer = SDL_CreateRenderer(m_GameWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+	SDL_RenderSetLogicalSize(m_Renderer, k_WindowWidth, k_WindowHeight);
 
 	if (m_Renderer == nullptr)
 	{
@@ -35,11 +47,6 @@ bool Emulator::Initialise()
 		std::cout << "ERROR: Failed to create render texture: " << SDL_GetError() << std::endl;
 		return false;
 	}
-	
-	InitCpu();
-	InitImGui();
-
-	return true;
 }
 
 void Emulator::InitCpu()
@@ -68,13 +75,13 @@ void Emulator::Run()
 	{
 		m_GameTimer->Tick();
 
-		if (m_bIsProgramLoaded && !m_bIsCpuPaused)
+		if (m_bIsProgramLoaded && !m_bIsPaused)
 		{
 			m_Cpu->RunCycle();
 
 			if (m_bExecuteSingleInstruction)
 			{
-				m_bIsCpuPaused = true;
+				m_bIsPaused = true;
 				m_bExecuteSingleInstruction = false;
 			}
 		}
@@ -196,13 +203,13 @@ void Emulator::Draw()
 		DrawDebugOverlay();
 
 	if (m_bShowVRamView)
-		m_VRamWindow->DrawWindow("VRAM View", m_Cpu->GetState()->VideoMemory, 2048);
+		m_VRamWindow->DrawWindow("VRAM View", (void *)&m_Cpu->GetState()->VideoMemory, 2048);
 
 	if (m_bShowSystemMemoryView)
-		m_SystemMemoryWindow->DrawWindow("System Memory", m_Cpu->GetState()->Memory, 4096);
+		m_SystemMemoryWindow->DrawWindow("System Memory", (void*)&m_Cpu->GetState()->Memory, 4096);
 
 	if (m_bShowStackView)
-		m_StackMemoryWindow->DrawWindow("Stack", &m_Cpu->GetState()->Memory[m_Cpu->GetState()->SP], 512);
+		m_StackMemoryWindow->DrawWindow("Stack",(void *)& m_Cpu->GetState()->Stack, 16);
 
 	ImGui::Render();
 	ImGuiSDL::Render(ImGui::GetDrawData());
@@ -255,14 +262,14 @@ void Emulator::DrawMainMenu()
 
 		if (ImGui::BeginMenu("Run"))
 		{
-			if (ImGui::MenuItem("Execute ROM", NULL, false, (m_bIsProgramLoaded && m_bIsCpuPaused)))
+			if (ImGui::MenuItem("Execute ROM", NULL, false, (m_bIsProgramLoaded && m_bIsPaused)))
 			{
-				m_bIsCpuPaused = false;
+				m_bIsPaused = false;
 			}
 
-			if (ImGui::MenuItem("Execute Single Instruction", NULL, false, (m_bIsProgramLoaded && m_bIsCpuPaused)))
+			if (ImGui::MenuItem("Execute Single Instruction", NULL, false, (m_bIsProgramLoaded && m_bIsPaused)))
 			{
-				m_bIsCpuPaused = false;
+				m_bIsPaused = false;
 				m_bExecuteSingleInstruction = !m_bExecuteSingleInstruction;
 			}
 

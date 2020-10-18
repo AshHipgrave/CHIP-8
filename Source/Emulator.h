@@ -20,12 +20,12 @@ public:
 	/// <summary>
 	/// Initialises the various sub-systems required by the emulator
 	/// </summary>
+	/// <returns>True if program initialisation was successful or false if something went wrong and we cannot continue</returns>
 	bool Initialise();
 
 	/// <summary>
 	/// Main program loop. Handles Window events, CHIP-8 emulation, timers etc
 	/// </summary>
-	/// <returns></returns>
 	void Run();
 
 	/// <summary>
@@ -34,6 +34,12 @@ public:
 	void Stop();
 
 private:
+	/// <summary>
+	/// Initialises SDL2 and ensures we're setup to be able to draw to a window
+	/// </summary>
+	/// <returns>True if SDL2 initialisation was successful or false if something went wrong and we cannot continue</returns>
+	bool InitSDL();
+
 	/// <summary>
 	/// Initialises the CHIP-8 CPU emulator and loads a program
 	/// </summary>
@@ -47,7 +53,7 @@ private:
 	/// <summary>
 	/// Displays a 'File Browse Dialog' for the end-user to select a ROM to load from disk.
 	/// </summary>
-	/// <returns>True if the user selected a ROM and it was loaded successfully. Otherwsie false.</returns>
+	/// <returns>True if a ROM was selected and loaded successfully. False if either no ROM was selected or nothing loading failed.</returns>
 	bool LoadRom();
 
 	/// <summary>
@@ -96,7 +102,7 @@ private:
 	bool m_bIsRunning = false;
 
 	// Set to true if the CPU is paused and not executing any more instructions
-	bool m_bIsCpuPaused = true;
+	bool m_bIsPaused = true;
 
 	// Set to true if a ROM has been loaded into the CPU's memory ready for execution. False if no ROM has been loaded.
 	bool m_bIsProgramLoaded = false;
@@ -126,6 +132,7 @@ private:
 	ImGuiImpl* m_ImGuiContext = nullptr;
 
 private:
+
 	/*ImGui Memory Viewers*/
 
 	// Memory viewer for the CPU's VRAM
