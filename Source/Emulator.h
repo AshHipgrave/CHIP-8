@@ -146,10 +146,10 @@ private:
 	bool m_bShowStackView = false;
 
 	// Set to true if the ImGui CPU memory viewer should be displayed on-screen
-	bool m_bShowSystemMemoryView = false;
+	bool m_bShowSystemMemoryView = true;
 
 	// Set to true if the ImGui registers overlay should be displayed on-screen
-	bool m_bShowDebugOverlay = false;
+	bool m_bShowDebugOverlay = true;
 
 	// If set to true the CPU will execute a single instruction and then pause again
 	bool m_bExecuteSingleInstruction = false;
