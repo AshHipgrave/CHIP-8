@@ -33,7 +33,7 @@ struct ChipState
 	// Program memory of the loaded ROM
 	uint8_t* Memory = nullptr;
 
-	// Video RAM for what is currently being drawn on-screen (This is ChipState->Memory[0xF00])
+	// Video RAM for what is currently being drawn on-screen
 	uint8_t* VideoMemory = nullptr;
 
 	// Keyboard key states (0 = Up | 1 = Down). Only 16 keys are available on the CHIP-8.
@@ -57,8 +57,6 @@ class CPU
 private:
 	// Pointer to the current execution state of the CPU
 	ChipState* m_CpuState = nullptr;
-
-	friend class ImGuiImpl;
 
 public:
 	/// <summary>

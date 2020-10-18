@@ -9,6 +9,7 @@
 #include "CPU.h"
 #include "GameTimer.h"
 #include "ImGuiImpl.h"
+#include "imgui_memory_editor.h"
 
 /*
 * Main application class for running the emulator and managing the overall program state
@@ -39,6 +40,11 @@ private:
 	void InitCpu();
 
 	/// <summary>
+	/// Initialises Dear ImGui integration
+	/// </summary>
+	void InitImGui();
+
+	/// <summary>
 	/// Displays a 'File Browse Dialog' for the end-user to select a ROM to load from disk.
 	/// </summary>
 	/// <returns>True if the user selected a ROM and it was loaded successfully. Otherwsie false.</returns>
@@ -55,18 +61,45 @@ private:
 	void Update();
 
 	/// <summary>
-	/// Draws the emulator VRAM to screen
+	/// Clears the display and prepares to draw a new frame
+	/// </summary>
+	void Clear();
+
+	/// <summary>
+	/// Draws the emulator VRAM and Dear ImGui UI to screen
 	/// </summary>
 	void Draw();
 
 	/// <summary>
-	/// Decrements the CPU's 'Sound' and/or 'Delay' timers by 60 each second if they're currently greater than 0
+	/// Pushes the current back buffer to screen to be drawn
+	/// </summary>
+	void Present();
+
+	/// <summary>
+	/// Decrements the CPU's 'Sound' and/or 'Delay' timers each second if they're currently greater than 0
 	/// </summary>
 	void UpdateTimers();
 
 private:
-	// Set to true if the CPU is currently running a program or false if no program is currently executing
+	/// <summary>
+	/// Draws the ImGui menu bar at the top of the screen
+	/// </summary>
+	void DrawMainMenu();
+
+	/// <summary>
+	/// Draws the ImGui debug overlay showing the contents of each CPU register
+	/// </summary>
+	void DrawDebugOverlay();
+
+private:
+	// Set to true if the emulator is currently running (Not including the CPU)
 	bool m_bIsRunning = false;
+
+	// Set to true if the CPU is paused and not executing any more instructions
+	bool m_bIsCpuPaused = true;
+
+	// Set to true if a ROM has been loaded into the CPU's memory ready for execution. False if no ROM has been loaded.
+	bool m_bIsProgramLoaded = false;
 
 	// Buffer for uploading VRAM to the GPU for rendering
 	uint32_t m_PixelBuffer[2048];
@@ -89,9 +122,42 @@ private:
 	// Game timer class used for handling timer-related emulation tasks
 	GameTimer* m_GameTimer = nullptr;
 
+	// ImGui implementation. Handles key presses and state for the ImGui integration
 	ImGuiImpl* m_ImGuiContext = nullptr;
 
 private:
+	/*ImGui Memory Viewers*/
+
+	// Memory viewer for the CPU's VRAM
+	MemoryEditor* m_VRamWindow = nullptr;
+
+	// Memory viewer for the CPU's Stack
+	MemoryEditor* m_StackMemoryWindow = nullptr;
+
+	// Memory viewer for the CPU's full memory view
+	MemoryEditor* m_SystemMemoryWindow = nullptr;
+
+	/* ImGui State variables */
+
+	// Set to true if the ImGui VRAM memory viewer should be displayed on-screen
+	bool m_bShowVRamView = false;
+
+	// Set to true if the ImGui Stack memory viewer should be displayed on-screen
+	bool m_bShowStackView = false;
+
+	// Set to true if the ImGui CPU memory viewer should be displayed on-screen
+	bool m_bShowSystemMemoryView = false;
+
+	// Set to true if the ImGui registers overlay should be displayed on-screen
+	bool m_bShowDebugOverlay = false;
+
+	// If set to true the CPU will execute a single instruction and then pause again
+	bool m_bExecuteSingleInstruction = false;
+
+private:
+
+	/* Constants */
+
 	// Dimensions the main application window will be created at
 	int k_WindowWidth = 1440;
 	int k_WindowHeight = 900;

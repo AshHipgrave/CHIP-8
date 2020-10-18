@@ -37,15 +37,7 @@ bool Emulator::Initialise()
 	}
 	
 	InitCpu();
-
-	if (!LoadRom())
-	{
-		std::cout << "Failed to load to a ROM file" << std::endl;
-		return false;
-	}
-
-	m_ImGuiContext = new ImGuiImpl();
-	m_ImGuiContext->Init(m_Renderer, k_WindowWidth, k_WindowHeight);
+	InitImGui();
 
 	return true;
 }
@@ -54,6 +46,16 @@ void Emulator::InitCpu()
 {
 	m_Cpu = new CPU();
 	m_Cpu->Init();
+}
+
+void Emulator::InitImGui()
+{
+	m_ImGuiContext = new ImGuiImpl();
+	m_ImGuiContext->Init(m_Renderer, k_WindowWidth, k_WindowHeight);
+
+	m_VRamWindow = new MemoryEditor();
+	m_StackMemoryWindow = new MemoryEditor();
+	m_SystemMemoryWindow = new MemoryEditor();
 }
 
 void Emulator::Run()
@@ -66,19 +68,23 @@ void Emulator::Run()
 	{
 		m_GameTimer->Tick();
 
-		HandleEvents();
-
-		if (!m_Cpu->GetState()->bIsStopped)
+		if (m_bIsProgramLoaded && !m_bIsCpuPaused)
 		{
-			Update();
-
 			m_Cpu->RunCycle();
 
-			Draw();
+			if (m_bExecuteSingleInstruction)
+			{
+				m_bIsCpuPaused = true;
+				m_bExecuteSingleInstruction = false;
+			}
 		}
 
-		if (m_Cpu->GetState()->bIsStopped)
-			m_bIsRunning = false;
+		HandleEvents();
+		Update();
+
+		Clear();
+		Draw();
+		Present();
 	}
 }
 
@@ -113,6 +119,7 @@ bool Emulator::LoadRom()
 					if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &filePath)))
 					{
 						success = m_Cpu->LoadProgram(filePath);
+						m_bIsProgramLoaded = success;
 					}
 					item->Release();
 				}
@@ -145,7 +152,7 @@ void Emulator::HandleEvents()
 
 void Emulator::Update()
 {
-	m_ImGuiContext->Update();
+	m_ImGuiContext->Update(m_GameTimer->DeltaTime());
 
 	m_KeyStates = const_cast<Uint8*>(SDL_GetKeyboardState(0));
 
@@ -164,6 +171,13 @@ void Emulator::Update()
 	UpdateTimers();
 }
 
+void Emulator::Clear()
+{
+	SDL_RenderClear(m_Renderer);
+
+	ImGui::NewFrame();
+}
+
 void Emulator::Draw()
 {
 	for (int i = 0; i < 2048; i++)
@@ -174,13 +188,28 @@ void Emulator::Draw()
 	}
 
 	SDL_UpdateTexture(m_RenderTexture, NULL, m_PixelBuffer, 64 * sizeof(uint32_t));
-
-	SDL_RenderClear(m_Renderer);
-
 	SDL_RenderCopy(m_Renderer, m_RenderTexture, NULL, NULL);
 
-	m_ImGuiContext->Draw(m_Cpu);
+	DrawMainMenu();
 
+	if (m_bShowDebugOverlay)
+		DrawDebugOverlay();
+
+	if (m_bShowVRamView)
+		m_VRamWindow->DrawWindow("VRAM View", m_Cpu->GetState()->VideoMemory, 2048);
+
+	if (m_bShowSystemMemoryView)
+		m_SystemMemoryWindow->DrawWindow("System Memory", m_Cpu->GetState()->Memory, 4096);
+
+	if (m_bShowStackView)
+		m_StackMemoryWindow->DrawWindow("Stack", &m_Cpu->GetState()->Memory[m_Cpu->GetState()->SP], 512);
+
+	ImGui::Render();
+	ImGuiSDL::Render(ImGui::GetDrawData());
+}
+
+void Emulator::Present()
+{
 	SDL_RenderPresent(m_Renderer);
 }
 
@@ -208,6 +237,139 @@ void Emulator::UpdateTimers()
 
 		timeElapsed += 1.0f;
 	}
+}
+
+void Emulator::DrawMainMenu()
+{
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("Load ROM"))
+			{
+				LoadRom();
+			}
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("Run"))
+		{
+			if (ImGui::MenuItem("Execute ROM", NULL, false, (m_bIsProgramLoaded && m_bIsCpuPaused)))
+			{
+				m_bIsCpuPaused = false;
+			}
+
+			if (ImGui::MenuItem("Execute Single Instruction", NULL, false, (m_bIsProgramLoaded && m_bIsCpuPaused)))
+			{
+				m_bIsCpuPaused = false;
+				m_bExecuteSingleInstruction = !m_bExecuteSingleInstruction;
+			}
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("Debug"))
+		{
+			ImGui::MenuItem("Show Debug Overlay",       NULL,  &m_bShowDebugOverlay);
+			ImGui::MenuItem("Show Stack",               NULL,  &m_bShowStackView);
+			ImGui::MenuItem("Show Full System Memory",  NULL,  &m_bShowSystemMemoryView);
+			ImGui::MenuItem("Show VRAM",                NULL,  &m_bShowVRamView);
+
+			ImGui::EndMenu();
+		}
+	}
+
+	ImGui::EndMainMenuBar();
+}
+
+void Emulator::DrawDebugOverlay()
+{
+	const float DISTANCE = 10.0f;
+	static int corner = 2;
+
+	ImGuiIO& io = ImGui::GetIO();
+
+	if (corner != -1)
+	{
+		ImVec2 windowPosition = ImVec2(
+			(corner & 1) ? io.DisplaySize.x - DISTANCE : DISTANCE,
+			(corner & 2) ? io.DisplaySize.y - DISTANCE : DISTANCE);
+
+		// https://media.giphy.com/media/2OP9jbHFlFPW/giphy.gif
+		ImVec2 windowPostionPivot = ImVec2(
+			(corner & 1) ? 1.0f : 0.0f,
+			(corner & 2) ? 1.0f : 0.0f);
+
+		ImGui::SetNextWindowPos(windowPosition, ImGuiCond_Always, windowPostionPivot);
+	}
+
+	ImGui::SetNextWindowBgAlpha(0.35f);
+
+	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+
+	if (corner == -1)
+	{
+		windowFlags |= ImGuiWindowFlags_NoMove;
+	}
+
+	if (ImGui::Begin("Debug View", &m_bShowDebugOverlay, windowFlags))
+	{
+		const char* format_byte_space = "%02X ";
+
+		ImU16 sp = m_Cpu->GetState()->SP;
+		ImGui::Text("Stack Pointer:   ");
+		ImGui::SameLine();
+		ImGui::Text(format_byte_space, sp);
+
+		ImU16 pc = m_Cpu->GetState()->PC;
+		ImGui::Text("Program Counter: ");
+		ImGui::SameLine();
+		ImGui::Text(format_byte_space, pc);
+
+		ImU16 iReg = m_Cpu->GetState()->I;
+		ImGui::Text("I Register:      ");
+		ImGui::SameLine();
+		ImGui::Text(format_byte_space, iReg);
+
+		ImGui::Separator();
+
+		ImU8 delay = m_Cpu->GetState()->Delay;
+		ImGui::Text("Delay Register:  ");
+		ImGui::SameLine();
+		ImGui::Text(format_byte_space, delay);
+
+		ImU8 sound = m_Cpu->GetState()->Sound;
+		ImGui::Text("Sound Register:  ");
+		ImGui::SameLine();
+		ImGui::Text(format_byte_space, sound);
+
+		ImGui::Separator();
+
+		for (int i = 0; i < 16; i++)
+		{
+			const char* padding = (i < 10) ? "............" : "...........";
+
+			ImU8 vReg = m_Cpu->GetState()->V[i];
+			ImGui::Text("V[%d] %s", i, padding);
+			ImGui::SameLine();
+			ImGui::Text(format_byte_space, vReg);
+		}
+
+		if (ImGui::BeginPopupContextWindow())
+		{
+			if (ImGui::MenuItem("Custom", NULL, corner == -1)) corner = -1;
+			if (ImGui::MenuItem("Top-left", NULL, corner == 0))  corner = 0;
+			if (ImGui::MenuItem("Top-right", NULL, corner == 1))  corner = 1;
+			if (ImGui::MenuItem("Bottom-left", NULL, corner == 2))  corner = 2;
+			if (ImGui::MenuItem("Bottom-right", NULL, corner == 3))  corner = 3;
+
+			if (&m_bShowDebugOverlay && ImGui::MenuItem("Close")) m_bShowDebugOverlay = false;
+
+			ImGui::EndPopup();
+		}
+	}
+	ImGui::End();
 }
 
 void Emulator::Stop()
